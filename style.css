@@ -1,0 +1,706 @@
+body {
+    background-color: #000;
+    color: #fff;
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 20px;
+    overflow-x: hidden;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #444;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+#refresh-btn {
+    background-color: #5cb85c;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1.2em;
+    font-weight: bold;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#refresh-btn:hover {
+    background-color: #4cae4c;
+}
+
+h1 {
+    margin: 0;
+    font-size: 2em;
+    color: #f0ad4e;
+}
+
+#clock {
+    font-size: 1.6em;
+    font-weight: bold;
+}
+
+.stop-section {
+    margin-bottom: 30px;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 10px;
+    background-color: #111;
+}
+
+.stop-title {
+    font-size: 1.5rem;
+    color: #7cb5ff;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+}
+
+.eta-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.eta-table th, .eta-table td {
+    text-align: left;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    padding-left: 10px;
+    padding-right: 10px;
+    font-size: 1.2em;
+    vertical-align: middle;
+}
+
+.eta-table th {
+    color: #888;
+    font-size: 1.2em;
+    border-bottom: 2px solid #555;
+}
+
+.route-no {
+    font-weight: bold;
+    color: lightcoral;
+    width: 15%;
+}
+
+.route-no.ctb {
+    color: #ffeb3b;
+}
+
+.route-no.ctb-airport {
+    color: #BF1E2E;
+}
+
+.route-no.route-9xx {
+    color: #009e6c;
+}
+
+.route-no.gmb {
+    color: #90ee90;
+}
+
+.route-text {
+    font-size: 3rem;
+    line-height: 1;
+}
+
+.route-suffix {
+    font-size: 2.2rem;
+}
+
+.dest {
+    color: #fff;
+    font-weight: bold;
+    width: 80%;
+}
+
+.dest-text {
+    font-size: 1.6rem;
+    line-height: 1;
+}
+
+.stop-code {
+    font-size: 0.8rem;
+    color: #aaa;
+    margin-left: 10px;
+    font-weight: normal;
+    vertical-align: middle;
+}
+
+.dir-circle {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+.dir-circle.outbound {
+    background-color: #ff4e50; /* Red for Outbound */
+    box-shadow: 0 0 4px #ff4e50;
+}
+
+.dir-circle.inbound {
+    background-color: #fff; /* White for Inbound */
+    box-shadow: 0 0 4px #fff;
+}
+
+.time-container {
+    display: flex;
+    justify-content: flex-start;
+    gap: 1px;
+}
+
+.eta-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 84px;
+    padding: 3px;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+.eta-item.eta-border-kmb {
+    border: 2px solid lightcoral;
+}
+
+.eta-item.eta-border-ctb {
+    border: 2px solid #ffeb3b;
+}
+
+.eta-item.arriving {
+    background-color: #f0ad4e;
+    color: #000;
+}
+
+.eta-exact {
+    font-size: 1.1em;
+    color: #fff;
+    font-weight: bold;
+}
+
+.eta-remark-tag-small {
+    font-size: 0.6rem;
+    vertical-align: top;
+}
+    
+.time-text-b {
+    font-size: 1.6rem;
+    font-weight: bold;
+}
+
+.arriving-text {
+    font-size: 0.9em;
+}
+
+.bold {
+    font-weight: bold;
+}
+
+.time-seconds {
+    font-size: 0.5em; /* Relative to eta-exact (1.4em * 0.5 = 0.7em) */
+}
+
+.eta-item.arriving .eta-exact {
+    color: black;
+}
+
+.eta-min {
+    font-size: 0.6em;
+    font-weight: bold;
+}
+
+.text-green { color: #006000; }
+.text-light-green { color: #90ee90; }
+.text-light-yellow { color: #e9be82; }
+.text-yellow { color: #f0ad4e; }
+.text-orange { color: #ff8c00; }
+.text-white { color: #fff; }
+.text-grey { color: #ccc; } /* Added grey */
+.text-dark-grey { color: #888; }
+.text-black { color: #000; }
+
+.dest-remark {
+    color: lightcoral;
+    font-size: 0.9rem;
+    margin-left: 10px;
+    vertical-align: middle;
+}
+
+.dest-remark-marquee {
+    display: inline-block;
+    max-width: 150px;
+    overflow: hidden;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.dest-remark-marquee .marquee-inner {
+    display: inline-block;
+    animation: marquee-scroll 6s linear infinite;
+    padding-left: 100%;
+}
+
+@keyframes marquee-scroll {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+}
+
+.eta-remark {
+    font-size: 0.6em;
+    color: #aaa;
+    white-space: nowrap;
+    min-height: 1.2em;
+}
+
+.eta-item.arriving .eta-remark {
+    color: #333;
+}
+
+.dest-sub-info {
+    display: block; 
+    margin-top: -5px; 
+    margin-left: -8px; 
+}
+
+.stop-info {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Two-column layout infrastructure */
+#stops-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.grid-column {
+    display: contents;
+}
+.stop-label {
+    font-size: 1.3rem;
+    color: #fff;
+    font-weight: bold;
+}
+
+.loading {
+    text-align: center;
+    color: #888;
+    padding: 20px;
+}
+
+.pin-divider {
+    height: 1px;
+    background: linear-gradient(to right, #444, #666, #444);
+    padding: 0 !important;
+    margin: 0;
+}
+
+.error {
+    color: #d9534f;
+    text-align: center;
+}
+
+table, th, td {
+  border: 0px solid gray;
+  border-collapse: collapse;
+}
+/* Toggle Switch */
+.toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.toggle-label {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 28px;
+}
+
+.switch input { 
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #5cb85c;
+    -webkit-transition: .4s;
+    transition: .4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    -webkit-transition: .4s;
+    transition: .4s;
+}
+
+input:checked + .slider {
+    background-color: #2196F3;
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .slider:before {
+    -webkit-transform: translateX(22px);
+    -ms-transform: translateX(22px);
+    transform: translateX(22px);
+}
+
+/* Rounded sliders */
+.slider.round {
+    border-radius: 34px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+/* Mode B Styles */
+.eta-large {
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+.eta-small {
+    font-size: 0.6em;
+    color: #fff;
+}
+
+.eta-small .time-seconds {
+    font-size: 0.8em; /* Same as parent */
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+@media (max-width: 460px) {
+    #refresh-btn {
+        padding: 6px 15px;
+        font-size: 1em;
+    }
+    .eta-item-last { display: none; }
+}
+
+
+@media (max-width: 600px) {
+    header {
+        flex-wrap: wrap;
+    }
+    h1 {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    .header-right {
+        width: 100%;
+        justify-content: space-between;
+    }
+    .header-controls {
+        gap: 10px;
+    }
+
+    .time-text-b { font-size: 1.1em; }
+    .arriving-text {font-size: 0.9em; }
+
+    .eta-item { width: 68px; }
+    
+    .eta-remark-tag-small {
+        font-size: 0.5rem;
+        vertical-align: top;
+    }
+
+    .dest-sub-info {
+        margin-top: -6px; 
+    }
+}
+
+@media (max-width: 700px) {
+    .header-right {
+        gap: 10px;
+    }
+    .rmk {
+        font-weight: normal;
+    }
+
+    body {
+        padding: 5px;
+    }
+    .stop-section {
+        margin-top: 10px;
+        margin-bottom: 10px;
+        padding: 5px;
+    }
+
+    .stop-label {
+        font-size: 0.9rem;
+    }
+
+    .eta-table th, .eta-table td {
+        padding-top: 1px;
+        padding-bottom: 1px;
+        padding-left: 1px;
+        padding-right: 1px;
+    }
+
+    td.route-no, th.route-no { padding-right: 8px; }
+
+    .stop-title {
+        font-size: 1.2rem;
+        padding-left: 5px;
+    }
+
+    .route-text { font-size: 2rem; }
+    .long-route-text { font-family: "Arial Narrow", "Roboto Condensed", sans-serif; }
+    .route-suffix { font-size: 1.5rem; }
+    .dest-text { font-size: 1.1rem; }
+    .stop-code { font-size: 0.7rem !important; }
+    .dest-remark { font-size: 0.7rem !important; }
+    
+
+    .eta-remark-tag-small {
+        font-size: 0.5rem;
+        vertical-align: top;
+    }
+    
+    .eta-item { width: 68px; }
+    .eta-exact { font-size: 1em; }
+
+    /* Mode B Mobile Styles */
+    .eta-large { 
+        font-size: 1em; 
+        white-space: nowrap; 
+    }
+    .eta-small { 
+        font-size: 0.5em; 
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 800px) {
+    h1 {
+        font-size: 1.5rem;
+    }
+
+    #refresh-btn {
+        padding: 10px 20px;
+        font-size: 1em;
+    }
+    
+    #clock {
+        font-size: 1.4em;
+        font-weight: bold;
+    }
+}
+
+@media (min-width: 1240px) {
+    #stops-container {
+        flex-direction: row;
+        gap: 10px;
+        align-items: flex-start;
+    }
+    .grid-column {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 0;
+    }
+    .grid-column .stop-section {
+        order: 0 !important;
+    }
+
+    .route-text { font-size: 3.3rem; }
+    .route-suffix { font-size: 2.5rem;}
+
+    .long-route-text { font-family: "Arial Narrow", "Roboto Condensed", sans-serif; }
+    td.route-no, th.route-no { padding-right: 2px; }
+    
+    .eta-remark-tag-small {
+        font-size: 0.6rem;
+        vertical-align: top;
+    }
+
+    .time-text-b { font-size: 1.4em; }
+    .arriving-text {font-size: 0.8em; }
+    .eta-item {
+        width: 84px;
+        padding: 2px;
+    }
+
+    .dest-text {
+        font-size: 1.6rem;
+    }
+}
+
+/* TV Mode / Large Screen Optimization */
+@media (min-width: 1600px) {
+    body {
+        font-size: 20px;
+        padding: 30px;
+        max-width: 100%;
+    }
+
+
+    header {
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+    }
+
+    h1 {
+        font-size: 2.5rem;
+    }
+
+    #clock {
+        font-size: 3rem;
+    }
+
+    .stop-title {
+        font-size: 2rem;
+        margin-bottom: 15px;
+        border-left: 8px solid #f0ad4e;
+        padding-left: 15px;
+    }
+
+    .stop-info {
+        padding-top: 0px;
+        padding-bottom: 0px;
+
+    }
+    
+    .eta-table td {
+        padding-top: 5px;
+        padding-bottom: 5px;
+        padding-left: 1px;
+        padding-right: 1px;
+    }
+    
+    td.route-no, th.route-no { padding-right: 12px; }
+
+    /* Route Number */
+    .route-text {
+        font-size: 5rem;
+    }
+
+    .route-suffix {
+        font-size: 3.6rem;
+    }
+
+    .long-route-text { font-family: "Arial Narrow", "Roboto Condensed", sans-serif; }
+
+    /* Destination & Stop Code Layout */
+    .dest {
+        vertical-align: middle;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 360px;
+    }
+
+    .dest-text {
+        font-size: 2.2rem;
+        line-height: 1;
+        display: inline;
+        vertical-align: middle;
+    }
+
+    .dest-sub-info {
+        display: block;
+        margin-left: 0;
+        margin-top: 0; 
+    }
+
+    .stop-code {
+        font-size: 1.2rem;
+        color: #ccc;
+    }
+
+    .dir-circle {
+        width: 15px;
+        height: 15px;
+        margin-right: 6px;
+    }
+
+    .dest-remark {
+        font-size: 1.2rem;
+    }
+
+    /* ETA Items */
+    .eta-item {
+        width: 120px;
+        padding: 2px;
+    }
+
+    .eta-exact {
+        font-size: 1.5em;
+    }
+
+    .eta-min {
+        font-size: 1rem;
+    }
+    .time-text { font-size: 1.2em; }
+    .time-text-b { font-size: 1.2em; }
+    .arriving-text { font-size: 0.8em; }
+
+    .eta-large {
+        font-size: 2.3rem;
+    }
+
+    .eta-small {
+        font-size: 1rem;
+    }
+
+    .eta-remark-tag {
+        font-size: 1rem;
+    }
+
+    .eta-remark-tag-small {
+        font-size: 0.8rem;
+        vertical-align: top;
+    }
+
+    .time-seconds {
+        font-size: 0.6em;
+    }
+
+    .stop-label {
+        font-size: 1.5rem;
+    }
+}
+
+/* Testing Borders */
+ table, th, td {
+    border: 0px solid white;
+} 

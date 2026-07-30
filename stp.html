@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title></title><!-- set dynamically from config -->
+    <link rel="icon" type="image/svg+xml" href="logo_v2.svg">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <script src="config/stp.js"></script>
+    <div class="container">
+        <header>
+            <h1 id="page-title"></h1>
+            <div class="header-right">
+                <div class="header-controls">
+                    <div id="clock"></div>
+                    <button id="refresh-btn" onclick="render()">F5</button>
+                </div>
+            </div>
+        </header>
+
+        <div id="stops-container">
+            <!-- Bus stop sections will be injected here -->
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

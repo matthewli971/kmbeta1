@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Logo to PNG Converter</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; background: #333; color: #fff; }
+        .container { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+        canvas { border: 2px solid #555; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        button { padding: 15px 30px; font-size: 18px; background: #f0ad4e; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: #000; }
+        button:hover { background: #d35400; color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Logo Preview (PNG)</h1>
+        <p>Right-click the image below to "Save Image As..." or click the button.</p>
+        <canvas id="canvas" width="512" height="512"></canvas>
+        <button onclick="downloadPNG()">Download PNG</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // The SVG content from logo_v2.svg
+        const svgData = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2c3e50;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#000000;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="url(#bgGrad)" />
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#f0ad4e" stroke-width="20" opacity="0.8" />
+  <path d="M136 200 L346 200 A 30 30 0 0 1 376 230 L376 320 L136 320 Z" fill="#f0ad4e" />
+  <rect x="136" y="320" width="240" height="40" fill="#d35400" />
+  <circle cx="186" cy="360" r="35" fill="#fff" />
+  <circle cx="326" cy="360" r="35" fill="#fff" />
+  <circle cx="186" cy="360" r="15" fill="#333" />
+  <circle cx="326" cy="360" r="15" fill="#333" />
+  <rect x="156" y="220" width="60" height="60" fill="#2c3e50" rx="5" />
+  <rect x="236" y="220" width="60" height="60" fill="#2c3e50" rx="5" />
+  <path d="M316 220 L346 220 L346 280 L316 280 Z" fill="#2c3e50" />
+  <line x1="256" y1="256" x2="256" y2="140" stroke="#fff" stroke-width="15" stroke-linecap="round" />
+  <line x1="256" y1="256" x2="340" y2="256" stroke="#fff" stroke-width="15" stroke-linecap="round" />
+  <circle cx="256" cy="256" r="15" fill="#fff" />
+</svg>`;
+
+        const img = new Image();
+        const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+        const url = URL.createObjectURL(svgBlob);
+
+        img.onload = function() {
+            ctx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(url);
+        };
+
+        img.src = url;
+
+        function downloadPNG() {
+            const link = document.createElement('a');
+            link.download = 'logo_v2.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+    </script>
+</body>
+</html>
