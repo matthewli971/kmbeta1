@@ -22,8 +22,21 @@
                         </div>
                     </div>
                 </header>
+                <div id="monitor-error" class="error" role="alert" hidden></div>
                 <div id="stops-container"></div>
             </div>`;
+    }
+
+    function showMonitorError(message) {
+        const errorMessage = document.getElementById('monitor-error');
+        errorMessage.textContent = message;
+        errorMessage.hidden = false;
+    }
+
+    function clearMonitorError() {
+        const errorMessage = document.getElementById('monitor-error');
+        errorMessage.textContent = '';
+        errorMessage.hidden = true;
     }
 
     function loadScript(src) {
@@ -41,10 +54,12 @@
             renderSharedShell();
             await loadScript(location.config);
             await loadScript('script.js');
+            await loadScript('route-win.js');
+            clearMonitorError();
             document.getElementById('refresh-btn').addEventListener('click', render);
         } catch (error) {
             console.error('Unable to start monitor:', error);
-            document.getElementById('stops-container').innerHTML = '<div class="error">Unable to load monitor files. Please refresh the page.</div>';
+            showMonitorError('Unable to load monitor files. Please refresh the page.');
         }
     }
 

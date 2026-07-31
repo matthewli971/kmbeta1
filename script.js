@@ -1,5 +1,5 @@
 // ===== App Version =====
-const APP_VERSION = "v0.38a";
+const APP_VERSION = "v0.39";
 
 // ===== Runtime State =====
 const STOP_CACHE = {};
@@ -728,7 +728,7 @@ async function processStopGroup(stopGroup) {
             }
 
             row.innerHTML = `
-                <td class="${routeClass}"><span class="${routeTextClass}">${formatRouteNumber(group.route)}</span></td>
+                <td class="${routeClass}"><button class="route-link ${routeTextClass}" type="button" data-route="${group.route}" data-company="${group.company}" data-direction="${group.dir}" data-service-type="${uniqueEtas[0]?.service_type || 1}" title="查看路線到站時間">${formatRouteNumber(group.route)}</button></td>
                 <td class="${destClass}">${destContent}</td>
                 <td class="time-container">${departuresHtml}</td>
             `;
@@ -865,3 +865,14 @@ setInterval(() => {
     });
 }, 1000);
 updateClock();
+
+document.addEventListener('click', event => {
+    const routeLink = event.target.closest('.route-link');
+    if (!routeLink) return;
+    openRouteWindow(
+        routeLink.dataset.route,
+        routeLink.dataset.company,
+        routeLink.dataset.direction,
+        routeLink.dataset.serviceType
+    );
+});

@@ -1,9 +1,64 @@
+:root {
+    /* Colors */
+    --color-background: #000;
+    --color-surface: #111;
+    --color-text: #fff;
+    --color-muted: #aaa;
+    --color-dark-muted: #888;
+    --color-stop-title: #7cb5ff;
+    --color-stop-code: #aaa;
+    --color-eta-remark: #aaa;
+    --color-accent: #f0ad4e;
+    --color-kmb: lightcoral;
+    --color-ctb: #ffeb3b;
+    --color-ctb-airport: #bf1e2e;
+    --color-route-9xx: #009e6c;
+    --color-gmb: #90ee90;
+    --color-green: #006000;
+    --color-light-green: #90ee90;
+    --color-light-yellow: #e9be82;
+    --color-yellow: #f0ad4e;
+    --color-orange: #ff8c00;
+    --color-grey: #ccc;
+
+    /* Font sizes */
+    --font-title: 2em;
+    --font-body: inherit;
+    --font-clock: 1.6em;
+    --font-button: 1.2em;
+    --font-table: 1.2em;
+    --font-toggle-label: 1.2em;
+    --font-stop-title: 1.5rem;
+    --font-route: 3rem;
+    --font-route-suffix: 2.2rem;
+    --font-destination: 1.6rem;
+    --font-stop-code: 1rem;
+    --font-stop-label: 1.3rem;
+    --font-destination-remark: 0.9rem;
+    --font-eta-time: 1.6rem;
+    --font-arriving: 0.9em;
+    --font-eta-exact: 1.1em;
+    --font-eta-min: 0.6em;
+    --font-eta-remark: 0.6em;
+    --font-eta-large: 1.1em;
+    --font-eta-small: 0.6em;
+    --font-eta-small-seconds: 0.8em;
+    --font-time-exact: 1.2em;
+    --font-eta-tag-small: 0.6rem;
+    --font-time-seconds: 0.5em;
+    --font-route-route: 2rem;
+    --font-route-stop-name: 1.4rem;
+    --refresh-clock-clearance: 96px;
+    --page-margin: 20px;
+}
+
 body {
-    background-color: #000;
-    color: #fff;
+    background-color: var(--color-background);
+    color: var(--color-text);
     font-family: 'Arial', sans-serif;
+    font-size: var(--font-body);
     margin: 0;
-    padding: 20px;
+    padding: var(--page-margin);
     overflow-x: hidden;
 }
 
@@ -23,11 +78,15 @@ header {
 }
 
 #refresh-btn {
+    position: fixed;
+    z-index: 10;
+    top: var(--page-margin);
+    right: var(--page-margin);
     background-color: #5cb85c;
-    color: white;
+    color: var(--color-text);
     border: none;
     padding: 10px 20px;
-    font-size: 1.2em;
+    font-size: var(--font-button);
     font-weight: bold;
     border-radius: 5px;
     cursor: pointer;
@@ -39,13 +98,14 @@ header {
 
 h1 {
     margin: 0;
-    font-size: 2em;
-    color: #f0ad4e;
+    font-size: var(--font-title);
+    color: var(--color-accent);
 }
 
 #clock {
-    font-size: 1.6em;
+    font-size: var(--font-clock);
     font-weight: bold;
+    margin-right: var(--refresh-clock-clearance);
 }
 
 .stop-section {
@@ -53,12 +113,12 @@ h1 {
     border: 1px solid #333;
     border-radius: 8px;
     padding: 10px;
-    background-color: #111;
+    background-color: var(--color-surface);
 }
 
 .stop-title {
-    font-size: 1.5rem;
-    color: #7cb5ff;
+    font-size: var(--font-stop-title);
+    color: var(--color-stop-title);
     margin-bottom: 10px;
     border-bottom: 1px solid #333;
     padding-bottom: 5px;
@@ -75,61 +135,75 @@ h1 {
     padding-bottom: 5px;
     padding-left: 10px;
     padding-right: 10px;
-    font-size: 1.2em;
+    font-size: var(--font-table);
     vertical-align: middle;
 }
 
 .eta-table th {
-    color: #888;
-    font-size: 1.2em;
+    color: var(--color-dark-muted);
+    font-size: var(--font-table);
     border-bottom: 2px solid #555;
 }
 
 .route-no {
     font-weight: bold;
-    color: lightcoral;
+    color: var(--color-kmb);
     width: 15%;
 }
 
 .route-no.ctb {
-    color: #ffeb3b;
+    color: var(--color-ctb);
 }
 
 .route-no.ctb-airport {
-    color: #BF1E2E;
+    color: var(--color-ctb-airport);
 }
 
 .route-no.route-9xx {
-    color: #009e6c;
+    color: var(--color-route-9xx);
 }
 
 .route-no.gmb {
-    color: #90ee90;
+    color: var(--color-gmb);
 }
 
 .route-text {
-    font-size: 3rem;
+    font-size: var(--font-route);
     line-height: 1;
 }
 
+.route-link {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: inherit;
+    padding: 0;
+    text-align: left;
+}
+
+.route-link:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+
 .route-suffix {
-    font-size: 2.2rem;
+    font-size: calc(var(--font-route) * 0.75);
 }
 
 .dest {
-    color: #fff;
+    color: var(--color-text);
     font-weight: bold;
     width: 80%;
 }
 
 .dest-text {
-    font-size: 1.6rem;
+    font-size: var(--font-destination);
     line-height: 1;
 }
 
 .stop-code {
-    font-size: 0.8rem;
-    color: #aaa;
+    font-size: var(--font-stop-code);
+    color: var(--color-stop-code);
     margin-left: 10px;
     font-weight: normal;
     vertical-align: middle;
@@ -171,36 +245,36 @@ h1 {
 }
 
 .eta-item.eta-border-kmb {
-    border: 2px solid lightcoral;
+    border: 2px solid var(--color-kmb);
 }
 
 .eta-item.eta-border-ctb {
-    border: 2px solid #ffeb3b;
+    border: 2px solid var(--color-ctb);
 }
 
 .eta-item.arriving {
-    background-color: #f0ad4e;
-    color: #000;
+    background-color: var(--color-accent);
+    color: var(--color-background);
 }
 
 .eta-exact {
-    font-size: 1.1em;
-    color: #fff;
+    font-size: var(--font-eta-exact);
+    color: var(--color-text);
     font-weight: bold;
 }
 
 .eta-remark-tag-small {
-    font-size: 0.6rem;
+    font-size: var(--font-eta-tag-small);
     vertical-align: top;
 }
     
 .time-text-b {
-    font-size: 1.6rem;
+    font-size: var(--font-eta-time);
     font-weight: bold;
 }
 
 .arriving-text {
-    font-size: 0.9em;
+    font-size: var(--font-arriving);
 }
 
 .bold {
@@ -208,31 +282,175 @@ h1 {
 }
 
 .time-seconds {
-    font-size: 0.5em; /* Relative to eta-exact (1.4em * 0.5 = 0.7em) */
+    font-size: var(--font-time-seconds);
 }
 
 .eta-item.arriving .eta-exact {
-    color: black;
+    color: var(--color-background);
 }
 
 .eta-min {
-    font-size: 0.6em;
+    font-size: var(--font-eta-min);
     font-weight: bold;
 }
 
-.text-green { color: #006000; }
-.text-light-green { color: #90ee90; }
-.text-light-yellow { color: #e9be82; }
-.text-yellow { color: #f0ad4e; }
-.text-orange { color: #ff8c00; }
-.text-white { color: #fff; }
-.text-grey { color: #ccc; } /* Added grey */
-.text-dark-grey { color: #888; }
-.text-black { color: #000; }
+.text-green { color: var(--color-green); }
+.text-light-green { color: var(--color-light-green); }
+.text-light-yellow { color: var(--color-light-yellow); }
+.text-yellow { color: var(--color-yellow); }
+.text-orange { color: var(--color-orange); }
+.text-white { color: var(--color-text); }
+.text-grey { color: var(--color-grey); }
+.text-dark-grey { color: var(--color-dark-muted); }
+.text-black { color: var(--color-background); }
+
+/* Route ETA floating window */
+.route-window-overlay {
+    position: fixed;
+    z-index: 1000;
+    inset: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 20px;
+    background: rgb(0 0 0 / 72%);
+}
+
+.route-window {
+    /* Keep route ETA cards at the 700px monitor scale on large displays. */
+    --font-eta-time: 1.6rem;
+    --font-arriving: 0.9em;
+    --font-eta-large: 1.1em;
+    --font-eta-small: 0.6em;
+    --font-eta-tag-small: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    font-size: 16px;
+    width: min(700px, 100%);
+    max-height: min(86vh, 900px);
+    overflow: hidden;
+    border: 1px solid #555;
+    border-radius: 18px;
+    background: #111;
+    box-shadow: 0 16px 48px rgb(0 0 0 / 70%);
+}
+
+.route-window-header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 58px 14px 18px;
+    border-bottom: 0;
+    margin-bottom: 0;
+}
+
+.route-window-title,
+.route-window-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.route-window-title { font-size: 1.2rem; font-weight: bold; min-width: 0; }
+.route-window-route { color: var(--color-kmb); font-size: var(--font-route-route); }
+.route-window-route .route-suffix { font-size: calc(var(--font-route-route) * 0.75); }
+.route-window-journey { margin-left: 12px; color: var(--color-text); font-size: 1.4rem; white-space: nowrap; }
+
+.route-window-refresh,
+.route-direction-button,
+.route-variation-button,
+.route-window-close {
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: bold;
+}
+
+.route-window-refresh {
+    min-width: 54px;
+    height: 34px;
+    border: 0;
+    border-radius: 4px;
+    background: #5cb85c;
+    color: #fff;
+    font-size: 1rem;
+}
+
+.route-window-refresh:hover { background: #4cae4c; }
+
+.route-direction-button {
+    width: 34px;
+    height: 34px;
+    border: 2px solid #fff;
+    border-radius: 8px;
+    background: #000;
+    color: #fff;
+    padding: 0;
+}
+
+.route-direction-icon { display: block; width: 28px; height: 28px; }
+.route-direction-icon .direction-arrow {
+    fill: none;
+    stroke: #555;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 4;
+}
+.route-direction-button.outbound .direction-arrow-out,
+.route-direction-button.inbound .direction-arrow-in { stroke: #fff; }
+
+.route-variation-button {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    font-size: 1rem;
+}
+
+.route-variation-button.normal { border: 2px solid #fff; background: #fff; color: #000; }
+.route-variation-button.variation { border: 2px solid #fff; background: #000; color: #fff; }
+
+.route-window-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #fff;
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.route-window-close:hover { background: #333; }
+.route-window-content { overflow: auto; padding: 10px; }
+.route-window-loading, .route-window-message { padding: 28px; color: var(--color-muted); text-align: center; }
+.route-stop-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.route-stop-table tr + tr { border-top: 1px solid #292929; }
+.route-stop-table td { padding: 6px 4px; vertical-align: middle; }
+.route-stop-seq { width: 20px; color: var(--color-dark-muted); text-align: center; }
+.route-stop-name { font-size: var(--font-route-stop-name); font-weight: bold; }
+.route-stop-name-text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.route-stop-name-marquee-text { display: inline-block; }
+.route-stop-name-marquee .route-stop-name-marquee-text { animation: route-stop-marquee 7s ease-in-out infinite alternate; }
+.route-stop-code { display: block; margin-top: 2px; color: var(--color-stop-code); font-size: var(--font-stop-code); font-weight: normal; }
+.route-stop-interchange { font-size: 0.85em; }
+.route-stop-times { display: table-cell; width: 252px; min-width: 252px; text-align: left; white-space: nowrap; }
+.route-stop-times .eta-item { display: inline-flex; width: 84px; vertical-align: middle; }
+.route-stop-times .eta-large,
+.route-stop-times .eta-small { white-space: nowrap; }
+.route-stop-times .eta-remark-tag { font-size: 0.65rem; }
+.route-stop-times .eta-item.arriving .eta-remark-tag { font-weight: bold; }
+.route-stop-no-eta { color: var(--color-dark-muted); font-size: .85rem; }
 
 .dest-remark {
-    color: lightcoral;
-    font-size: 0.9rem;
+    color: var(--color-kmb);
+    font-size: var(--font-destination-remark);
     margin-left: 10px;
     vertical-align: middle;
 }
@@ -256,9 +474,14 @@ h1 {
     100% { transform: translateX(-100%); }
 }
 
+@keyframes route-stop-marquee {
+    0%, 15% { transform: translateX(0); }
+    85%, 100% { transform: translateX(var(--route-stop-marquee-distance)); }
+}
+
 .eta-remark {
-    font-size: 0.6em;
-    color: #aaa;
+    font-size: var(--font-eta-remark);
+    color: var(--color-eta-remark);
     white-space: nowrap;
     min-height: 1.2em;
 }
@@ -288,14 +511,14 @@ h1 {
     display: contents;
 }
 .stop-label {
-    font-size: 1.3rem;
-    color: #fff;
+    font-size: var(--font-stop-label);
+    color: var(--color-text);
     font-weight: bold;
 }
 
 .loading {
     text-align: center;
-    color: #888;
+    color: var(--color-dark-muted);
     padding: 20px;
 }
 
@@ -323,7 +546,7 @@ table, th, td {
 }
 
 .toggle-label {
-    font-size: 1.2em;
+    font-size: var(--font-toggle-label);
     font-weight: bold;
 }
 
@@ -389,17 +612,17 @@ input:checked + .slider:before {
 
 /* Mode B Styles */
 .eta-large {
-    font-size: 1.1em;
+    font-size: var(--font-eta-large);
     font-weight: bold;
 }
 
 .eta-small {
-    font-size: 0.6em;
-    color: #fff;
+    font-size: var(--font-eta-small);
+    color: var(--color-text);
 }
 
 .eta-small .time-seconds {
-    font-size: 0.8em; /* Same as parent */
+    font-size: var(--font-eta-small-seconds);
 }
 
 .header-controls {
@@ -409,15 +632,30 @@ input:checked + .slider:before {
 }
 
 @media (max-width: 460px) {
+    :root {
+        --font-button: 1em;
+    }
+
     #refresh-btn {
         padding: 6px 15px;
-        font-size: 1em;
+        font-size: var(--font-button);
     }
     .eta-item-last { display: none; }
+
+    .route-window-title { width: 100%; }
+    .route-window-actions { margin-top: 6px; }
+    .route-window-close { top: 8px; right: 8px; }
 }
 
 
 @media (max-width: 600px) {
+    :root {
+        --font-eta-time: 1.1em;
+        --font-arriving: 0.9em;
+        --font-eta-tag-small: 0.5rem;
+        --font-route-stop-name: 1.1rem;
+    }
+
     header {
         flex-wrap: wrap;
     }
@@ -433,15 +671,37 @@ input:checked + .slider:before {
         gap: 10px;
     }
 
-    .time-text-b { font-size: 1.1em; }
-    .arriving-text {font-size: 0.9em; }
+    .eta-item { width: 80px; }
 
-    .eta-item { width: 68px; }
-    
-    .eta-remark-tag-small {
-        font-size: 0.5rem;
-        vertical-align: top;
+    .route-window-overlay { 
+        align-items: flex-start;
+        padding: 50px 2px;
     }
+    .route-window {
+        --font-eta-time: 1.1em;
+        --font-arriving: 0.9em;
+        --font-eta-tag-small: 0.5rem;
+        width: 100%;
+        max-height: calc(100vh - 100px);
+        border-radius: 10px;
+    }
+    .route-window-header {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        padding: 8px 52px 8px 8px;
+    }
+    .route-window-title { width: 100%; }
+    .route-window-actions { margin-top: 6px; }
+    .route-window-close { top: 8px; right: 8px; }
+    .route-window-actions { gap: 6px; }
+    .route-window-title { gap: 6px; font-size: 1rem; }
+    .route-window-route { font-size: 1.5rem; }
+    .route-window-journey { margin-left: 6px; font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; }
+    .route-window-refresh { min-width: 42px; }
+    .route-window-content { padding: 4px; }
+    .route-stop-table td { padding: 5px 2px; }
+    .route-stop-times { width: 200px; min-width: 200px; }
+    .route-stop-times .eta-item { width: 65px; padding: 2px; }
 
     .dest-sub-info {
         margin-top: -6px; 
@@ -449,6 +709,21 @@ input:checked + .slider:before {
 }
 
 @media (max-width: 700px) {
+    :root {
+        --font-stop-label: 0.9rem;
+        --font-stop-title: 1.2rem;
+        --font-stop-code: 0.75rem;
+        --font-route: 2rem;
+        --font-route-suffix: 1.5rem;
+        --font-destination: 1.1rem;
+        --font-destination-remark: 0.7rem;
+        --font-eta-tag-small: 0.5rem;
+        --font-eta-large: 1em;
+        --font-eta-small: 0.5em;
+        --font-eta-exact: 1em;
+        --page-margin: 5px;
+    }
+
     .header-right {
         gap: 10px;
     }
@@ -456,17 +731,10 @@ input:checked + .slider:before {
         font-weight: normal;
     }
 
-    body {
-        padding: 5px;
-    }
     .stop-section {
         margin-top: 10px;
         margin-bottom: 10px;
         padding: 5px;
-    }
-
-    .stop-label {
-        font-size: 0.9rem;
     }
 
     .eta-table th, .eta-table td {
@@ -478,55 +746,44 @@ input:checked + .slider:before {
 
     td.route-no, th.route-no { padding-right: 8px; }
 
-    .stop-title {
-        font-size: 1.2rem;
-        padding-left: 5px;
-    }
-
-    .route-text { font-size: 2rem; }
+    .stop-title { padding-left: 5px; }
     .long-route-text { font-family: "Arial Narrow", "Roboto Condensed", sans-serif; }
-    .route-suffix { font-size: 1.5rem; }
-    .dest-text { font-size: 1.1rem; }
-    .stop-code { font-size: 0.7rem !important; }
-    .dest-remark { font-size: 0.7rem !important; }
-    
-
-    .eta-remark-tag-small {
-        font-size: 0.5rem;
-        vertical-align: top;
-    }
     
     .eta-item { width: 68px; }
-    .eta-exact { font-size: 1em; }
 
     /* Mode B Mobile Styles */
-    .eta-large { 
-        font-size: 1em; 
-        white-space: nowrap; 
-    }
-    .eta-small { 
-        font-size: 0.5em; 
-        white-space: nowrap;
-    }
+    .eta-large, .eta-small { white-space: nowrap; }
 }
 
 @media (max-width: 800px) {
-    h1 {
-        font-size: 1.5rem;
+    :root {
+        --font-title: 1.5rem;
+        --font-button: 1em;
+        --font-clock: 1.4em;
+        --refresh-clock-clearance: 78px;
     }
 
     #refresh-btn {
         padding: 10px 20px;
-        font-size: 1em;
+        font-size: var(--font-button);
     }
     
     #clock {
-        font-size: 1.4em;
+        font-size: var(--font-clock);
         font-weight: bold;
     }
 }
 
 @media (min-width: 1240px) {
+    :root {
+        --font-route: 3.3rem;
+        --font-route-suffix: 2.5rem;
+        --font-eta-tag-small: 0.6rem;
+        --font-eta-time: 1.4em;
+        --font-arriving: 0.8em;
+        --font-destination: 1.6rem;
+    }
+
     #stops-container {
         flex-direction: row;
         gap: 10px;
@@ -542,36 +799,45 @@ input:checked + .slider:before {
         order: 0 !important;
     }
 
-    .route-text { font-size: 3.3rem; }
-    .route-suffix { font-size: 2.5rem;}
-
     .long-route-text { font-family: "Arial Narrow", "Roboto Condensed", sans-serif; }
     td.route-no, th.route-no { padding-right: 2px; }
     
-    .eta-remark-tag-small {
-        font-size: 0.6rem;
-        vertical-align: top;
-    }
-
-    .time-text-b { font-size: 1.4em; }
-    .arriving-text {font-size: 0.8em; }
     .eta-item {
         width: 84px;
         padding: 2px;
     }
 
-    .dest-text {
-        font-size: 1.6rem;
-    }
 }
 
 /* TV Mode / Large Screen Optimization */
 @media (min-width: 1600px) {
-    body {
-        font-size: 20px;
-        padding: 30px;
-        max-width: 100%;
+    :root {
+        --font-body: 20px;
+        --color-stop-code: #ccc;
+        --font-title: 2.5rem;
+        --font-clock: 3rem;
+        --font-stop-title: 2rem;
+        --font-route: 5rem;
+        --font-route-suffix: 3.6rem;
+        --font-destination: 2.2rem;
+        --font-stop-code: 1.4rem;
+        --font-destination-remark: 1.2rem;
+        --font-stop-label: 1.5rem;
+        --font-eta-time: 1.2em;
+        --font-arriving: 0.8em;
+        --font-eta-exact: 1.5em;
+        --font-eta-min: 1rem;
+        --font-eta-large: 2.3rem;
+        --font-eta-small: 1rem;
+        --font-eta-small-seconds: 0.8em;
+        --font-eta-tag-small: 0.8rem;
+        --font-time-seconds: 0.6em;
+        --font-time-exact: 1.2em;
+        --refresh-clock-clearance: 110px;
+        --page-margin: 30px;
     }
+
+    body { max-width: 100%; }
 
 
     header {
@@ -579,16 +845,7 @@ input:checked + .slider:before {
         padding-bottom: 10px;
     }
 
-    h1 {
-        font-size: 2.5rem;
-    }
-
-    #clock {
-        font-size: 3rem;
-    }
-
     .stop-title {
-        font-size: 2rem;
         margin-bottom: 15px;
         border-left: 8px solid #f0ad4e;
         padding-left: 15px;
@@ -610,14 +867,6 @@ input:checked + .slider:before {
     td.route-no, th.route-no { padding-right: 12px; }
 
     /* Route Number */
-    .route-text {
-        font-size: 5rem;
-    }
-
-    .route-suffix {
-        font-size: 3.6rem;
-    }
-
     .long-route-text { font-family: "Arial Narrow", "Roboto Condensed", sans-serif; }
 
     /* Destination & Stop Code Layout */
@@ -630,7 +879,6 @@ input:checked + .slider:before {
     }
 
     .dest-text {
-        font-size: 2.2rem;
         line-height: 1;
         display: inline;
         vertical-align: middle;
@@ -642,19 +890,10 @@ input:checked + .slider:before {
         margin-top: 0; 
     }
 
-    .stop-code {
-        font-size: 1.2rem;
-        color: #ccc;
-    }
-
     .dir-circle {
         width: 15px;
         height: 15px;
         margin-right: 6px;
-    }
-
-    .dest-remark {
-        font-size: 1.2rem;
     }
 
     /* ETA Items */
@@ -663,41 +902,11 @@ input:checked + .slider:before {
         padding: 2px;
     }
 
-    .eta-exact {
-        font-size: 1.5em;
+    .route-stop-code { 
+        font-size: 1.1rem; 
     }
 
-    .eta-min {
-        font-size: 1rem;
-    }
-    .time-text { font-size: 1.2em; }
-    .time-text-b { font-size: 1.2em; }
-    .arriving-text { font-size: 0.8em; }
-
-    .eta-large {
-        font-size: 2.3rem;
-    }
-
-    .eta-small {
-        font-size: 1rem;
-    }
-
-    .eta-remark-tag {
-        font-size: 1rem;
-    }
-
-    .eta-remark-tag-small {
-        font-size: 0.8rem;
-        vertical-align: top;
-    }
-
-    .time-seconds {
-        font-size: 0.6em;
-    }
-
-    .stop-label {
-        font-size: 1.5rem;
-    }
+    .time-text { font-size: var(--font-time-exact); }
 }
 
 /* Testing Borders */
