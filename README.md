@@ -22,7 +22,11 @@ A web application to display real-time bus arrival times for specific Hong Kong 
 
 ## Usage
 
-Simply open `index.html` in a modern web browser. Use the toggle switch in the header to switch between Display Mode A and Mode B.
+Open a location page in a modern web browser:
+
+- `stp.html` for HK Science Park (the default `index.html` page opens the same monitor)
+
+Each location page loads the same application shell and shared monitor logic. Its location-specific stops, ordering, and display options live in `config/stp.js` , so functional fixes only need to be made once in `script.js` or `bootstrap.js`.
 
 ## Development
 
