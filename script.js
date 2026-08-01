@@ -1,5 +1,5 @@
 // ===== App Version =====
-const APP_VERSION = "v0.39";
+const APP_VERSION = "v0.40";
 
 // ===== Runtime State =====
 const STOP_CACHE = {};
@@ -22,6 +22,15 @@ document.title = PAGE_TITLE;
 function applyDestReplacement(dest) {
     if (!dest) return dest;
     return DEST_REPLACEMENTS[dest] || dest;
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 function updateClock() {
@@ -313,6 +322,7 @@ async function processStopGroup(stopGroup) {
                     company: 'CTB',
                     route: route,
                     dir: groupEtas[0].dir,
+                    stopId: stop.id,
                     stopCode: stop.code,
                     stopLabel: stop.label,
                     dest: applyDestReplacement(groupEtas[0].dest),
@@ -334,21 +344,22 @@ async function processStopGroup(stopGroup) {
                     
                     if (routeMeta) {
                         const dummyGroups = [];
-                        if (routeMeta['1']) dummyGroups.push({ company: 'GMB', route: routeNo, dir: '1', stopCode: stop.code, stopLabel: null, dest: routeMeta['1'], etas: [], isStale: true });
-                        if (routeMeta['2']) dummyGroups.push({ company: 'GMB', route: routeNo, dir: '2', stopCode: stop.code, stopLabel: null, dest: routeMeta['2'], etas: [], isStale: true });
-                        return dummyGroups.length > 0 ? dummyGroups : [{ company: 'GMB', route: routeNo, dir: '1', stopCode: stop.code, stopLabel: null, dest: '', etas: [], isStale: true }];
+                        if (routeMeta['1']) dummyGroups.push({ company: 'GMB', route: routeNo, dir: '1', stopId: stop.id, stopCode: stop.code, stopLabel: null, dest: routeMeta['1'], etas: [], isStale: true });
+                        if (routeMeta['2']) dummyGroups.push({ company: 'GMB', route: routeNo, dir: '2', stopId: stop.id, stopCode: stop.code, stopLabel: null, dest: routeMeta['2'], etas: [], isStale: true });
+                        return dummyGroups.length > 0 ? dummyGroups : [{ company: 'GMB', route: routeNo, dir: '1', stopId: stop.id, stopCode: stop.code, stopLabel: null, dest: '', etas: [], isStale: true }];
                     }
                     
-                    return [{
+                    return {
                         company: 'GMB',
                         route: routeNo,
                         dir: '1',
+                        stopId: stop.id,
                         stopCode: stop.code,
                         stopLabel: null,
                         dest: '',
                         etas: [],
                         isStale: true
-                    }];
+                    };
                 }
             }
 
@@ -369,6 +380,7 @@ async function processStopGroup(stopGroup) {
                     company: 'GMB',
                     route: groupEtas[0].route,
                     dir: groupEtas[0].dir,
+                    stopId: stop.id,
                     stopCode: stop.code,
                     stopLabel: null,
                     dest: groupEtas[0].dest_tc, // From GMB_META
@@ -400,6 +412,7 @@ async function processStopGroup(stopGroup) {
                     company: 'KMB',
                     route: route,
                     dir: groupEtas[0].dir,
+                    stopId: stop.id,
                     stopCode: stop.code,
                     stopLabel: stop.label,
                     dest: applyDestReplacement(groupEtas[0].dest_tc),
@@ -440,6 +453,7 @@ async function processStopGroup(stopGroup) {
                 ...group,
                 companies: new Set([group.company]),
                 stopCodes: { [group.company]: { code: group.stopCode, label: group.stopLabel } },
+                stopIds: { [group.company]: group.stopId },
                 dests: { [group.company]: group.dest }
             };
         } else {
@@ -448,6 +462,8 @@ async function processStopGroup(stopGroup) {
             if (!mergedGroups[key].stopCodes[group.company]) {
                 mergedGroups[key].stopCodes[group.company] = { code: group.stopCode, label: group.stopLabel };
             }
+            if (!mergedGroups[key].stopIds) mergedGroups[key].stopIds = {};
+            if (!mergedGroups[key].stopIds[group.company]) mergedGroups[key].stopIds[group.company] = group.stopId;
             if (!mergedGroups[key].dests[group.company]) {
                 mergedGroups[key].dests[group.company] = group.dest;
             }
@@ -632,7 +648,7 @@ async function processStopGroup(stopGroup) {
 
                 let innerHtml = `
                     <div class="eta-large ${minClass}">
-                        <span class="time-text-b" data-timestamp="${item.eta}" data-remark="${item.rmk_tc || ''}">${minText}</span>
+                        <span class="time-text-b${isArriving ? ' bold' : ''}" data-timestamp="${item.eta}" data-remark="${item.rmk_tc || ''}">${minText}</span>
                     </div>
                     <div class="eta-small">
                         <span class="eta-remark-tag${etaTagClass}">${formatTimeHtmlMinMode(item.eta)}</span>
@@ -666,14 +682,27 @@ async function processStopGroup(stopGroup) {
                 if (group.stopCodes.CTB) codes.push(group.stopCodes.CTB.code);
                 let dirClass = effectiveDir === 'O' ? 'outbound' : 'inbound';
                 let dirCircleHtml = `<span class="dir-circle ${dirClass}"></span>`;
-                stopCodeHtml += `<span class="stop-code">${dirCircleHtml} ${codes.join(' / ')}</span>`;
+                // The stop-ETA popup uses KMB's API, so only expose it for a KMB stop.
+                const kmbStopId = group.stopIds && group.stopIds.KMB;
+                const stopName = stopGroup.name || '';
+                const infoButtonHtml = kmbStopId
+                    ? `<button class="route-stop-info-button" type="button" data-stop-id="${escapeHtml(kmbStopId)}" data-stop-name="${escapeHtml(stopName)}" data-stop-code="${escapeHtml(codes.join(' / '))}" title="查看本站到站時間" aria-label="查看${escapeHtml(stopName)}到站時間">i</button>`
+                    : '';
+                stopCodeHtml += `<span class="stop-code">${dirCircleHtml} ${codes.join(' / ')}${infoButtonHtml}</span>`;
             } else if (group.company !== 'GMB') {
                 if (group.stopLabel) {
                     groupStopCodeHtml += `<span class="stop-label">(${group.stopLabel})</span> `;
                 }
                 let dirClass = effectiveDir === 'O' ? 'outbound' : 'inbound';
                 let dirCircleHtml = `<span class="dir-circle ${dirClass}"></span>`;
-                stopCodeHtml += `<span class="stop-code">${dirCircleHtml} ${group.stopCode}</span>`;
+                const kmbStopId = group.company === 'KMB'
+                    ? group.stopId
+                    : (group.stopIds && group.stopIds.KMB);
+                const stopName = stopGroup.name || '';
+                const infoButtonHtml = kmbStopId
+                    ? `<button class="route-stop-info-button" type="button" data-stop-id="${escapeHtml(kmbStopId)}" data-stop-name="${escapeHtml(stopName)}" data-stop-code="${escapeHtml(group.stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(stopName)}到站時間">i</button>`
+                    : '';
+                stopCodeHtml += `<span class="stop-code">${dirCircleHtml} ${group.stopCode}${infoButtonHtml}</span>`;
             }
 
             // For co-operated routes, use company of earliest ETA for route color
@@ -728,7 +757,7 @@ async function processStopGroup(stopGroup) {
             }
 
             row.innerHTML = `
-                <td class="${routeClass}"><button class="route-link ${routeTextClass}" type="button" data-route="${group.route}" data-company="${group.company}" data-direction="${group.dir}" data-service-type="${uniqueEtas[0]?.service_type || 1}" title="查看路線到站時間">${formatRouteNumber(group.route)}</button></td>
+                <td class="${routeClass}"><button class="route-link ${routeTextClass}" type="button" data-route="${group.route}" data-company="${displayCompany}" data-companies="${group.companies ? [...group.companies].join(',') : group.company}" data-direction="${group.dir}" data-service-type="${uniqueEtas[0]?.service_type || 1}" title="查看路線到站時間">${formatRouteNumber(group.route)}</button></td>
                 <td class="${destClass}">${destContent}</td>
                 <td class="time-container">${departuresHtml}</td>
             `;
@@ -873,6 +902,7 @@ document.addEventListener('click', event => {
         routeLink.dataset.route,
         routeLink.dataset.company,
         routeLink.dataset.direction,
-        routeLink.dataset.serviceType
+        routeLink.dataset.serviceType,
+        routeLink.dataset.companies
     );
 });

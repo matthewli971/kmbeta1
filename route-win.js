@@ -4,6 +4,10 @@ const KMB_ROUTE_API_BASE = "https://data.etabus.gov.hk/v1/transport/kmb/route";
 const KMB_ROUTE_STOP_API_BASE = "https://data.etabus.gov.hk/v1/transport/kmb/route-stop";
 const KMB_ROUTE_ETA_API_BASE = "https://data.etabus.gov.hk/v1/transport/kmb/route-eta";
 const KMB_STOP_API_BASE = "https://data.etabus.gov.hk/v1/transport/kmb/stop";
+const CTB_ROUTE_API_BASE = "https://rt.data.gov.hk/v2/transport/citybus/route/CTB";
+const CTB_ROUTE_STOP_API_BASE = "https://rt.data.gov.hk/v2/transport/citybus/route-stop/CTB";
+const CTB_STOP_API_BASE = "https://rt.data.gov.hk/v2/transport/citybus/stop";
+const CTB_ETA_API_BASE = "https://rt.data.gov.hk/v2/transport/citybus/eta/CTB";
 const ROUTE_STOP_CACHE = {};
 let kmbRouteListPromise = null;
 let routeWindowState = null;
@@ -17,6 +21,13 @@ function escapeHtml(value) {
 async function fetchKmbJson(url) {
     const response = await fetch(`${url}?t=${Date.now()}`, { cache: 'no-store' });
     if (!response.ok) throw new Error(`KMB API request failed (${response.status})`);
+    const data = await response.json();
+    return data.data;
+}
+
+async function fetchCtbJson(url) {
+    const response = await fetch(`${url}?t=${Date.now()}`, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Citybus API request failed (${response.status})`);
     const data = await response.json();
     return data.data;
 }
@@ -105,19 +116,59 @@ function closeRouteWindow() {
     routeWindowState = null;
 }
 
-async function openRouteWindow(route, company, direction, serviceType) {
+async function openRouteWindow(route, company, direction, serviceType, companies = company) {
     closeRouteWindow();
-    routeWindowState = { route, company, direction: direction === 'I' ? 'I' : 'O', serviceType: Number(serviceType) || 1, variations: [] };
+    routeWindowState = { route, company, companies, direction: direction === 'I' ? 'I' : 'O', serviceType: Number(serviceType) || 1, variations: [] };
     createRouteWindow();
     await loadRouteWindow();
 }
 
-function renderRouteTitle(route, routeInfo) {
-    if (!routeInfo?.orig_tc || !routeInfo?.dest_tc) return `<span class="route-window-route">${formatRouteNumber(route)}</span>`;
-    const origin = routeInfo.orig_tc.trim();
-    const destination = routeInfo.dest_tc.trim();
-    const arrow = destination.includes('(循環線)') ? '↺' : '→';
-    return `<span class="route-window-route">${formatRouteNumber(route)}</span><span class="route-window-journey">${escapeHtml(origin)} ${arrow} ${escapeHtml(destination)}</span>`;
+function getRouteTitleClass(route, company, companies) {
+    if (/^[136]\d{2}$/.test(route)) return 'route-cross-harbour';
+    if (/^9\d{2}[A-Za-z]?$/.test(route)) return 'route-9xx';
+    if (company === 'CTB' && /^A/i.test(route)) return 'route-ctb-airport';
+    if (company === 'LWB' && /^A/i.test(route)) return 'route-lwb-airport';
+    return 'route-ordinary';
+}
+
+function renderCompanyBadges(company, companies) {
+    const operators = new Set((companies || company || '').split(',').map(value => value.trim()));
+    return ['KMB', 'CTB'].filter(operator => operators.has(operator))
+        .map(operator => `<span class="route-company-badge route-company-badge-${operator.toLowerCase()}" title="${operator}" aria-label="${operator}"></span>`)
+        .join('');
+}
+
+function renderRouteTitle(route, routeInfo, company, companies, reverseJourney = false) {
+    const routeClass = getRouteTitleClass(route, company, companies);
+    const routeLabel = `${renderCompanyBadges(company, companies)}<span class="route-window-route ${routeClass}">${formatRouteNumber(route)}</span>`;
+    if (!routeInfo?.orig_tc || !routeInfo?.dest_tc) return routeLabel;
+    const origin = (reverseJourney ? routeInfo.dest_tc : routeInfo.orig_tc).trim();
+    let destination = (reverseJourney ? routeInfo.orig_tc : routeInfo.dest_tc).trim();
+    let loopBadge = '';
+    if (destination.includes('(循環線)')) {
+        destination = destination.replace('(循環線)', '').trim();
+        loopBadge = `<span class="route-loop-badge">循環線</span>`;
+    }
+    const arrow = '→';
+    return `${routeLabel}<span class="route-window-journey">${escapeHtml(origin)} ${arrow} ${escapeHtml(destination)} ${loopBadge}</span>`;
+}
+
+async function hasBothDirections(route) {
+    // Ensure the KMB route list is loaded and check for multiple bounds
+    if (!kmbRouteListPromise) {
+        try {
+            kmbRouteListPromise = fetchKmbJson(`${KMB_ROUTE_API_BASE}/`);
+        } catch (e) {
+            return true; // fallback: assume both directions available
+        }
+    }
+    try {
+        const routes = await kmbRouteListPromise;
+        const bounds = new Set(routes.filter(item => item.route === route).map(item => item.bound));
+        return bounds.size > 1;
+    } catch (e) {
+        return true;
+    }
 }
 
 function renderRouteStopEta(eta) {
@@ -140,7 +191,7 @@ function renderRouteStopEta(eta) {
     const remarkTag = isScheduled ? '[預定]' : eta.rmk_tc === '最後班次' ? '[尾班]' : '';
     const tagClass = isArriving ? 'text-black' : !hasEta || isScheduled || diffMins >= 30 ? 'text-grey' : 'text-white bold';
     return `<div class="eta-item${isArriving ? ' arriving' : ''}">
-        <div class="eta-large ${minClass}"><span class="time-text-b" data-timestamp="${escapeHtml(eta.eta)}" data-remark="${escapeHtml(eta.rmk_tc || '')}">${formatDuration(eta.eta, eta.rmk_tc)}</span></div>
+        <div class="eta-large ${minClass}"><span class="time-text-b${isArriving ? ' bold' : ''}" data-timestamp="${escapeHtml(eta.eta)}" data-remark="${escapeHtml(eta.rmk_tc || '')}">${formatDuration(eta.eta, eta.rmk_tc)}</span></div>
         <div class="eta-small">
             <span class="eta-remark-tag ${tagClass}">${formatTimeHtmlMinMode(eta.eta)}</span>
             <span class="eta-remark-tag-small ${tagClass}">${remarkTag}</span>
@@ -161,7 +212,7 @@ async function loadRouteWindow(loadVariations = true) {
     const content = overlay.querySelector('.route-window-content');
     const directionButton = overlay.querySelector('.route-direction-button');
     const variationButton = overlay.querySelector('.route-variation-button');
-    title.innerHTML = `<span class="route-window-route">${formatRouteNumber(route)}</span>`;
+    title.innerHTML = `${renderCompanyBadges(state.company, state.companies)}<span class="route-window-route ${getRouteTitleClass(route, state.company, state.companies)}">${formatRouteNumber(route)}</span>`;
     directionButton.innerHTML = renderDirectionIcon();
     directionButton.className = `route-direction-button ${direction === 'I' ? 'inbound' : 'outbound'}`;
     variationButton.textContent = serviceType;
@@ -180,10 +231,20 @@ async function loadRouteWindow(loadVariations = true) {
             if (!routeWindowState || routeWindowState !== state || state.requestId !== requestId) return;
             state.variations = variations.length ? variations : [state.serviceType];
             if (!state.variations.includes(state.serviceType)) state.serviceType = state.variations[0];
-            title.innerHTML = renderRouteTitle(route, routeInfo);
+            title.innerHTML = renderRouteTitle(route, routeInfo, state.company, state.companies);
             variationButton.textContent = state.serviceType;
             variationButton.className = `route-variation-button ${state.serviceType === 1 ? 'normal' : 'variation'}`;
-
+            // Hide variation button if only one variation
+            variationButton.hidden = !(state.variations && state.variations.length > 1);
+            // Disable direction button if only one direction exists
+            const bothDirs = await hasBothDirections(route);
+            if (!bothDirs) {
+                directionButton.style.opacity = '0.45';
+                directionButton.disabled = true;
+            } else {
+                directionButton.style.opacity = '';
+                directionButton.disabled = false;
+            }
             const etaBySequence = new Map();
             (routeEtas || []).filter(eta => eta.dir === direction && Number(eta.service_type) === serviceType)
                 .forEach(eta => {
@@ -205,7 +266,7 @@ async function loadRouteWindow(loadVariations = true) {
                 const interchangeName = interchangeMatch?.[1] || '';
                 if (interchangeMatch) displayName = interchangeMatch[2].trim();
                 const stopCodeHtml = stopCode || interchangeName
-                    ? `<span class="route-stop-code">${stopCode ? escapeHtml(stopCode) : ''}${interchangeName ? `<span class="route-stop-interchange">${stopCode ? ' ' : ''}${escapeHtml(interchangeName)}</span>` : ''}</span>`
+                    ? `<span class="route-stop-code">${stopCode ? escapeHtml(stopCode) : ''}${interchangeName ? `<span class="route-stop-interchange">${stopCode ? ' ' : ''}${escapeHtml(interchangeName)}</span>` : ''}<button class="route-stop-info-button" type="button" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(displayName)}" data-stop-code="${escapeHtml(stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(displayName)}到站時間">i</button></span>`
                     : '';
                 const etas = (etaBySequence.get(String(stop.seq)) || []).slice(0, 3);
                 const etaHtml = etas.length
@@ -218,8 +279,45 @@ async function loadRouteWindow(loadVariations = true) {
             console.error('Unable to load route ETA window:', error);
             if (routeWindowState === state && state.requestId === requestId) content.innerHTML = '<div class="route-window-message">未能取得路線資料，請稍後再試。</div>';
         }
+    } else if (state.company === 'CTB') {
+        try {
+            const directionParam = direction === 'I' ? 'inbound' : 'outbound';
+            const [routeInfo, routeStops] = await Promise.all([
+                fetchCtbJson(`${CTB_ROUTE_API_BASE}/${encodeURIComponent(route)}`),
+                fetchCtbJson(`${CTB_ROUTE_STOP_API_BASE}/${encodeURIComponent(route)}/${directionParam}`)
+            ]);
+            if (!routeWindowState || routeWindowState !== state || state.requestId !== requestId) return;
+            state.variations = [1];
+            variationButton.hidden = true;
+            title.innerHTML = renderRouteTitle(route, routeInfo, state.company, state.companies, direction === 'I');
+            // For CTB assume direction toggle may be disabled if only single bound returned
+            try {
+                const ctbstops = routeStops || [];
+                // If routeStops include only one bound, disable the direction button
+                // CTB API here provides stops for the requested direction; we cannot easily detect the other direction reliably, so leave enabled.
+            } catch (e) {}
+
+            const [stopDetails, stopEtas] = await Promise.all([
+                Promise.all((routeStops || []).map(stop => fetchCtbJson(`${CTB_STOP_API_BASE}/${encodeURIComponent(stop.stop)}`).catch(() => null))),
+                Promise.all((routeStops || []).map(stop => fetchCtbJson(`${CTB_ETA_API_BASE}/${encodeURIComponent(stop.stop)}/${encodeURIComponent(route)}`).catch(() => [])))
+            ]);
+            if (!routeWindowState || routeWindowState !== state || state.requestId !== requestId) return;
+            const rows = (routeStops || []).map((stop, index) => {
+                const detail = stopDetails[index];
+                const name = detail?.name_tc || detail?.name_en || stop.stop;
+                const etas = (stopEtas[index] || [])
+                    .filter(eta => eta.dir === direction && eta.eta)
+                    .sort((a, b) => new Date(a.eta) - new Date(b.eta))
+                    .slice(0, 3);
+                const etaHtml = etas.length ? etas.map(renderRouteStopEta).join('') : '<span class="route-stop-no-eta">暫無班次</span>';
+                return `<tr><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name"><span class="route-stop-name-text">${escapeHtml(name)}</span><span class="route-stop-code">${escapeHtml(stop.stop)}</span></td><td class="route-stop-times">${etaHtml}</td></tr>`;
+            }).join('');
+            content.innerHTML = `<table class="route-stop-table"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">未能取得站點資料。</td></tr>'}</tbody></table>`;
+        } catch (error) {
+            console.error('Unable to load Citybus route ETA window:', error);
+            if (routeWindowState === state && state.requestId === requestId) content.innerHTML = '<div class="route-window-message">未能取得路線資料，請稍後再試。</div>';
+        }
     } else {
-        content.innerHTML = '<div class="route-window-message">此功能目前只支援九巴路線。</div>';
-        return;
+        content.innerHTML = '<div class="route-window-message">此功能目前只支援九巴及城巴路線。</div>';
     }
 }

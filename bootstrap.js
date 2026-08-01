@@ -55,6 +55,7 @@
             await loadScript(location.config);
             await loadScript('script.js');
             await loadScript('route-win.js');
+            await loadScript('stop-win.js');
             clearMonitorError();
             document.getElementById('refresh-btn').addEventListener('click', render);
         } catch (error) {

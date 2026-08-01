@@ -3,8 +3,8 @@
     --color-background: #000;
     --color-surface: #111;
     --color-text: #fff;
-    --color-muted: #aaa;
-    --color-dark-muted: #888;
+    --color-grey: #aaa;
+    --color-dark-grey: #888;
     --color-stop-title: #7cb5ff;
     --color-stop-code: #aaa;
     --color-eta-remark: #aaa;
@@ -13,6 +13,7 @@
     --color-ctb: #ffeb3b;
     --color-ctb-airport: #bf1e2e;
     --color-route-9xx: #009e6c;
+    --color-route-cross-harbour: #f00;
     --color-gmb: #90ee90;
     --color-green: #006000;
     --color-light-green: #90ee90;
@@ -140,7 +141,7 @@ h1 {
 }
 
 .eta-table th {
-    color: var(--color-dark-muted);
+    color: var(--color-dark-grey);
     font-size: var(--font-table);
     border-bottom: 2px solid #555;
 }
@@ -301,7 +302,7 @@ h1 {
 .text-orange { color: var(--color-orange); }
 .text-white { color: var(--color-text); }
 .text-grey { color: var(--color-grey); }
-.text-dark-grey { color: var(--color-dark-muted); }
+.text-dark-grey { color: var(--color-dark-grey); }
 .text-black { color: var(--color-background); }
 
 /* Route ETA floating window */
@@ -355,9 +356,40 @@ h1 {
 }
 
 .route-window-title { font-size: 1.2rem; font-weight: bold; min-width: 0; }
-.route-window-route { color: var(--color-kmb); font-size: var(--font-route-route); }
+.route-window-route { color: var(--color-text); font-size: var(--font-route-route); }
 .route-window-route .route-suffix { font-size: calc(var(--font-route-route) * 0.75); }
+.route-company-badge {
+    height: calc(var(--font-route-route) * 0.9);
+    flex: 0 0 10px;
+    margin-right: 4px;
+}
+.route-company-badge-kmb { background: #f00; }
+.route-company-badge-ctb { background: #ffd400; }
+.route-window-route.route-9xx,
+.route-window-route.route-cross-harbour {
+    display: inline-block;
+    border-radius: 4px;
+    padding: 2px 6px;
+    color: #fff;
+}
+.route-window-route.route-9xx { background: var(--color-route-9xx); }
+.route-window-route.route-cross-harbour { background: var(--color-route-cross-harbour); }
+.route-window-route.route-ctb-airport { color: var(--color-ctb-airport); }
+.route-window-route.route-lwb-airport { color: var(--color-orange); }
 .route-window-journey { margin-left: 12px; color: var(--color-text); font-size: 1.4rem; white-space: nowrap; }
+
+/* Circular route badge in the route window journey */
+.route-loop-badge {
+    display: inline-block;
+    border: 1px solid #fff;
+    color: #fff;
+    background: transparent;
+    padding: 2px 8px;
+    margin-left: 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    line-height: 1;
+}
 
 .route-window-refresh,
 .route-direction-button,
@@ -428,25 +460,104 @@ h1 {
 }
 
 .route-window-close:hover { background: #333; }
-.route-window-content { overflow: auto; padding: 10px; }
-.route-window-loading, .route-window-message { padding: 28px; color: var(--color-muted); text-align: center; }
+.route-window-content { overflow-y: auto; overflow-x: auto; padding: 10px; }
+.route-window-loading, .route-window-message { padding: 28px; color: var(--color-grey); text-align: center; }
 .route-stop-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .route-stop-table tr + tr { border-top: 1px solid #292929; }
 .route-stop-table td { padding: 6px 4px; vertical-align: middle; }
-.route-stop-seq { width: 20px; color: var(--color-dark-muted); text-align: center; }
+.route-stop-seq { width: 20px; color: var(--color-dark-grey); text-align: center; }
 .route-stop-name { font-size: var(--font-route-stop-name); font-weight: bold; }
 .route-stop-name-text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .route-stop-name-marquee-text { display: inline-block; }
 .route-stop-name-marquee .route-stop-name-marquee-text { animation: route-stop-marquee 7s ease-in-out infinite alternate; }
 .route-stop-code { display: block; margin-top: 2px; color: var(--color-stop-code); font-size: var(--font-stop-code); font-weight: normal; }
 .route-stop-interchange { font-size: 0.85em; }
+.route-stop-info-button {
+    width: 16px;
+    height: 16px;
+    margin-left: 5px;
+    padding: 0;
+    border: 2px solid var(--color-grey);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--color-text);
+    cursor: pointer;
+    font: bold 0.8rem/1 "Courier New", monospace;
+    vertical-align: middle;
+}
+.route-stop-info-button:hover { background: var(--color-grey); }
 .route-stop-times { display: table-cell; width: 252px; min-width: 252px; text-align: left; white-space: nowrap; }
 .route-stop-times .eta-item { display: inline-flex; width: 84px; vertical-align: middle; }
 .route-stop-times .eta-large,
 .route-stop-times .eta-small { white-space: nowrap; }
 .route-stop-times .eta-remark-tag { font-size: 0.65rem; }
 .route-stop-times .eta-item.arriving .eta-remark-tag { font-weight: bold; }
-.route-stop-no-eta { color: var(--color-dark-muted); font-size: .85rem; }
+.route-stop-no-eta { color: var(--color-dark-grey); font-size: .85rem; }
+
+.stop-eta-window-title {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+    color: var(--color-text);
+    font-size: var(--font-route-stop-name);
+    font-weight: bold;
+}
+.stop-eta-window-title small {
+    margin-left: 8px;
+    color: var(--color-stop-code);
+    font-size: var(--font-stop-code);
+    font-weight: normal;
+}
+.stop-interchange-badge {
+    display: inline-block;
+    border: 1px solid #fff;
+    color: #fff;
+    background: transparent;
+    padding: 2px 8px;
+    margin-left: 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    line-height: 1;
+}
+.stop-eta-code {
+    display: inline-block;
+    font-weight: normal;
+    color: var(--color-stop-code);
+    margin-left: 8px;
+    vertical-align: middle;
+}
+.stop-eta-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.stop-eta-table tr + tr { border-top: 1px solid #292929; }
+.stop-eta-table td { padding: 8px 4px; vertical-align: middle; }
+.stop-eta-route { width: 92px; color: var(--color-kmb); font-size: var(--font-route-route); font-weight: bold; }
+.stop-eta-route.route-suffix { font-size: calc(var(--font-route-route) * 0.75); }
+.stop-eta-times { width: 240px; max-width: 240px; text-align: left; white-space: nowrap; overflow: hidden; }
+.stop-eta-destination { overflow: hidden; color: var(--color-text); font-size: var(--font-route-stop-name); font-weight: bold; text-overflow: ellipsis; white-space: nowrap; }
+.stop-eta-times .eta-item {
+    display: inline-flex;
+    flex: 0 0 72px;
+    width: 72px;
+    min-width: 56px;
+    vertical-align: middle;
+    box-sizing: border-box;
+    padding: 2px 4px;
+}
+.stop-eta-table td.stop-eta-route { width: 92px; }
+.stop-eta-table td.stop-eta-times { width: 220px; }
+.stop-eta-table td.stop-eta-destination { width: calc(100% - 92px - 220px); }
+
+/* stronger selector to override table layout constraints when shown inside the route window */
+.route-window .stop-eta-times {
+    width: 270px !important;
+    min-width: 140px !important;
+}
+.route-window .stop-eta-times .eta-item {
+    width: 80px !important;
+}
+.stop-eta-times .eta-large,
+.stop-eta-times .eta-small { white-space: nowrap; }
+.stop-eta-times .eta-remark-tag { font-size: 0.65rem; }
 
 .dest-remark {
     color: var(--color-kmb);
@@ -518,7 +629,7 @@ h1 {
 
 .loading {
     text-align: center;
-    color: var(--color-dark-muted);
+    color: var(--color-dark-grey);
     padding: 20px;
 }
 
@@ -675,14 +786,14 @@ input:checked + .slider:before {
 
     .route-window-overlay { 
         align-items: flex-start;
-        padding: 50px 2px;
+        padding: 40px 2px;
     }
     .route-window {
         --font-eta-time: 1.1em;
         --font-arriving: 0.9em;
         --font-eta-tag-small: 0.5rem;
         width: 100%;
-        max-height: calc(100vh - 100px);
+        max-height: 80vh;
         border-radius: 10px;
     }
     .route-window-header {
@@ -695,7 +806,7 @@ input:checked + .slider:before {
     .route-window-close { top: 8px; right: 8px; }
     .route-window-actions { gap: 6px; }
     .route-window-title { gap: 6px; font-size: 1rem; }
-    .route-window-route { font-size: 1.5rem; }
+    .route-window-route { font-size: 1.6rem; }
     .route-window-journey { margin-left: 6px; font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; }
     .route-window-refresh { min-width: 42px; }
     .route-window-content { padding: 4px; }
@@ -706,6 +817,10 @@ input:checked + .slider:before {
     .dest-sub-info {
         margin-top: -6px; 
     }
+
+    /* stop-eta specific adjustments on small screens */
+    .stop-eta-times { width: 180px; min-width: 120px; }
+    .stop-eta-times .eta-item { width: 64px; min-width: 48px; }
 }
 
 @media (max-width: 700px) {
@@ -903,7 +1018,7 @@ input:checked + .slider:before {
     }
 
     .route-stop-code { 
-        font-size: 1.1rem; 
+        font-size: 1rem; 
     }
 
     .time-text { font-size: var(--font-time-exact); }
