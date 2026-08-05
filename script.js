@@ -1,5 +1,5 @@
 // ===== App Version =====
-const APP_VERSION = "v0.41";
+const APP_VERSION = "v0.42";
 
 // ===== Runtime State =====
 const STOP_CACHE = {};
@@ -617,7 +617,7 @@ async function processStopGroup(stopGroup) {
                 const label = (group.stopCodes.KMB && group.stopCodes.KMB.label)
                     || (group.stopCodes.CTB && group.stopCodes.CTB.label);
                 if (label) {
-                    groupStopCodeHtml += `<span class="stop-label">(${label})</span> `;
+                    groupStopCodeHtml += `<span class="stop-label">${escapeHtml(label)}</span>`;
                 }
                 const codes = [];
                 if (group.stopCodes.KMB) codes.push(group.stopCodes.KMB.code);
@@ -635,7 +635,7 @@ async function processStopGroup(stopGroup) {
                 stopCodeHtml += `<span class="stop-code">${dirCircleHtml} ${codes.join(' / ')}${infoButtonHtml}</span>`;
             } else if (group.company !== 'GMB') {
                 if (group.stopLabel) {
-                    groupStopCodeHtml += `<span class="stop-label">(${group.stopLabel})</span> `;
+                    groupStopCodeHtml += `<span class="stop-label">${escapeHtml(group.stopLabel)}</span>`;
                 }
                 let dirClass = effectiveDir === 'O' ? 'outbound' : 'inbound';
                 let dirCircleHtml = `<span class="dir-circle ${dirClass}"></span>`;

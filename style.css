@@ -196,6 +196,7 @@ h1 {
 .dest-text {
     font-size: var(--font-destination);
     line-height: 1;
+    position: relative;
 }
 
 .stop-code {
@@ -415,8 +416,8 @@ h1 {
 /* Keep the stop-window refresh control from increasing the header height. */
 .stop-eta-window .route-window-actions {
     position: absolute;
-    top: 5px;
-    right: 42px;
+    top: 16px;
+    right: 50px;
 }
 .stop-eta-window .route-window-refresh {
     min-width: 42px;
@@ -505,7 +506,15 @@ h1 {
 .route-stop-times .eta-small { white-space: nowrap; }
 .route-stop-times .eta-remark-tag { font-size: var(--font-win-eta-time); }
 .route-stop-times .eta-item.arriving .eta-remark-tag { font-weight: bold; }
-.route-stop-no-eta { color: var(--color-dark-grey); font-size: .85rem; }
+.route-stop-no-eta {
+    display: inline-flex;
+    width: 84px;
+    justify-content: center;
+    box-sizing: border-box;
+    vertical-align: middle;
+    color: var(--color-dark-grey);
+    font-size: .85rem;
+}
 
 .stop-eta-window-title {
     display: flex;
@@ -644,9 +653,19 @@ h1 {
     display: contents;
 }
 .stop-label {
+    display: inline-block;
+    height: var(--font-destination);
+    padding: 0 6px;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    box-sizing: border-box;
     font-size: var(--font-stop-label);
+    line-height: var(--font-destination);
     color: var(--color-text);
-    font-weight: bold;
+    font-weight: normal;
+    vertical-align: top;
+    white-space: nowrap;
+    margin-right: 10px;
 }
 
 .loading {
@@ -812,6 +831,16 @@ input:checked + .slider:before {
     .eta-item { width: 80px; }
     .long-route-text { font-family: "Arial Narrow", "Roboto Condensed", sans-serif; }
 
+    .dest-text {
+        display: block;
+    }
+    .dest-text .stop-label {
+        position: absolute;
+        top: 0;
+        right: 10px;
+        margin-right: 0;
+    }
+
     .route-window-overlay { 
         align-items: flex-start;
         padding: 40px 2px;
@@ -842,6 +871,7 @@ input:checked + .slider:before {
     .route-stop-table td { padding: 4px 2px; }
     .route-stop-times { width: 200px; min-width: 200px; }
     .route-stop-times .eta-item { width: 65px; padding: 2px; }
+    .route-stop-no-eta { width: 65px; }
 
     .dest-sub-info {
         margin-top: -6px; 

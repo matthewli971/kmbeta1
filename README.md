@@ -13,7 +13,8 @@ A web application to display real-time bus arrival times for specific Hong Kong 
 -   **Auto-refresh**: Updates ETA data every 30 seconds and countdowns every second.
 -   **Responsive Design**: Optimized for both desktop and mobile viewing.
 -   **Dark Mode UI**: High contrast design for easy readability.
--   **Route ETA Window**: Click route number in stop ETA to check route-stop ETA of the routes. (Currently support routes: KMB)
+-   **Route ETA Window**: Click route number in the stop monitor to view route-stop ETAs.
+-   **Stop ETA Window**: View all route ETAs at that stop through "i" button in stops showing in stop monitor and route ETA window.
 
 ## Supported Stops
 

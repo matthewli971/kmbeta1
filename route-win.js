@@ -45,6 +45,97 @@ function getConfiguredStopCode(stopId) {
     return '';
 }
 
+function isCrossOperatorRoute(route) {
+    const routeValue = String(route || '').trim().toUpperCase();
+    const config = window.CROSS_OPERATOR_ROUTE_CONFIG || {};
+    const listedRoutes = config.routes || [];
+    if (listedRoutes.some(value => String(value).toUpperCase() === routeValue)) return true;
+    return (config.patterns || []).some(pattern => {
+        try {
+            return new RegExp(pattern, 'i').test(routeValue);
+        } catch (error) {
+            console.warn('Invalid cross-operator route pattern:', pattern, error);
+            return false;
+        }
+    });
+}
+
+function getOtherOperator(company) {
+    return company === 'KMB' ? 'CTB' : company === 'CTB' ? 'KMB' : null;
+}
+
+function hasRouteInfo(routeInfo) {
+    if (!routeInfo) return false;
+    if (Array.isArray(routeInfo)) return routeInfo.length > 0;
+    return typeof routeInfo === 'object' && Object.keys(routeInfo).length > 0;
+}
+
+async function checkOtherOperatorRoute(route, company) {
+    const otherCompany = getOtherOperator(company);
+    if (!otherCompany || !isCrossOperatorRoute(route)) return null;
+    try {
+        if (otherCompany === 'KMB') {
+            for (const directionParam of ['outbound', 'inbound']) {
+                try {
+                    const routeInfo = await fetchKmbJson(`${ROUTE_API.kmb.route}/${encodeURIComponent(route)}/${directionParam}/1`);
+                    if (hasRouteInfo(routeInfo)) return otherCompany;
+                } catch (error) {
+                    // Try the other direction before treating the route as absent.
+                }
+            }
+            return null;
+        }
+        const routeInfo = await fetchCtbJson(`${ROUTE_API.ctb.route}/${encodeURIComponent(route)}`);
+        return hasRouteInfo(routeInfo) ? otherCompany : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+async function fetchOtherOperatorEtas(route, company, direction, serviceType) {
+    const otherCompany = getOtherOperator(company);
+    if (!otherCompany || !isCrossOperatorRoute(route)) return new Map();
+
+    try {
+        const directionParam = direction === 'I' ? 'inbound' : 'outbound';
+        const routeStops = otherCompany === 'KMB'
+            ? await fetchKmbJson(`${ROUTE_API.kmb.routeStop}/${encodeURIComponent(route)}/${directionParam}/${serviceType}`)
+            : await fetchCtbJson(`${ROUTE_API.ctb.routeStop}/${encodeURIComponent(route)}/${directionParam}`);
+        const etaBySequence = new Map();
+
+        if (otherCompany === 'KMB') {
+            const routeEtas = await fetchKmbJson(`${ROUTE_API.kmb.routeEta}/${encodeURIComponent(route)}/${serviceType}`);
+            (routeEtas || [])
+                .filter(eta => eta.dir === direction && Number(eta.service_type) === Number(serviceType) && eta.eta)
+                .forEach(eta => {
+                    const sequence = String(eta.seq);
+                    if (!etaBySequence.has(sequence)) etaBySequence.set(sequence, []);
+                    eta._co = otherCompany;
+                    etaBySequence.get(sequence).push(eta);
+                });
+        } else {
+            await Promise.all((routeStops || []).map(async stop => {
+                const etas = await fetchCtbJson(`${ROUTE_API.ctb.eta}/${encodeURIComponent(stop.stop)}/${encodeURIComponent(route)}`)
+                    .catch(() => []);
+                const sequence = String(stop.seq);
+                const matchingEtas = (etas || []).filter(eta => eta.dir === direction && eta.eta);
+                if (matchingEtas.length) {
+                    if (!etaBySequence.has(sequence)) etaBySequence.set(sequence, []);
+                    matchingEtas.forEach(eta => {
+                        eta._co = otherCompany;
+                        etaBySequence.get(sequence).push(eta);
+                    });
+                }
+            }));
+        }
+
+        return etaBySequence;
+    } catch (error) {
+        console.warn(`Unable to load ${otherCompany} ETA for route ${route}:`, error);
+        return new Map();
+    }
+}
+
 async function getRouteVariations(route, direction) {
     if (!kmbRouteListPromise) {
         kmbRouteListPromise = fetchKmbJson(`${ROUTE_API.kmb.route}/`)
@@ -111,7 +202,7 @@ function closeRouteWindow() {
 
 async function openRouteWindow(route, company, direction, serviceType, companies = company) {
     closeRouteWindow();
-    routeWindowState = { route, company, companies, direction: direction === 'I' ? 'I' : 'O', serviceType: Number(serviceType) || 1, variations: [] };
+    routeWindowState = { route, company, companies, crossOperator: false, direction: direction === 'I' ? 'I' : 'O', serviceType: Number(serviceType) || 1, variations: [] };
     createRouteWindow();
     await loadRouteWindow();
 }
@@ -164,7 +255,7 @@ async function hasBothDirections(route) {
     }
 }
 
-function renderRouteStopEta(eta) {
+function renderRouteStopEta(eta, showOperatorBorder = false) {
     const etaDate = eta.eta ? new Date(eta.eta) : null;
     const hasEta = Boolean(eta.eta) && !Number.isNaN(etaDate?.getTime());
     const diffMs = hasEta ? etaDate - new Date() : null;
@@ -183,7 +274,12 @@ function renderRouteStopEta(eta) {
 
     const remarkTag = isScheduled ? '[預定]' : eta.rmk_tc === '最後班次' ? '[尾班]' : '';
     const tagClass = isArriving ? 'text-black' : !hasEta || isScheduled || diffMins >= 30 ? 'text-grey' : 'text-white bold';
-    return `<div class="eta-item${isArriving ? ' arriving' : ''}">
+    const borderClass = showOperatorBorder && eta._co === 'KMB'
+        ? ' eta-border-kmb'
+        : showOperatorBorder && eta._co === 'CTB'
+            ? ' eta-border-ctb'
+            : '';
+    return `<div class="eta-item${isArriving ? ' arriving' : ''}${borderClass}">
         <div class="eta-large ${minClass}"><span class="time-text-b${isArriving ? ' bold' : ''}" data-timestamp="${escapeHtml(eta.eta)}" data-remark="${escapeHtml(eta.rmk_tc || '')}">${formatDuration(eta.eta, eta.rmk_tc)}</span></div>
         <div class="eta-small">
             <span class="eta-remark-tag ${tagClass}">${formatTimeHtmlMinMode(eta.eta)}</span>
@@ -212,6 +308,18 @@ async function loadRouteWindow(loadVariations = true) {
     variationButton.className = `route-variation-button ${serviceType === 1 ? 'normal' : 'variation'}`;
     content.innerHTML = '<div class="route-window-loading">載入中...</div>';
 
+    if (isCrossOperatorRoute(route)) {
+        const otherCompany = await checkOtherOperatorRoute(route, state.company);
+        if (!routeWindowState || routeWindowState !== state || state.requestId !== requestId) return;
+        if (otherCompany) {
+            state.crossOperator = true;
+            const operators = new Set((state.companies || state.company).split(',').map(value => value.trim()).filter(Boolean));
+            operators.add(state.company);
+            operators.add(otherCompany);
+            state.companies = [...operators].join(',');
+        }
+    }
+
     if (state.company === 'KMB') {
         try {
             const directionParam = direction === 'I' ? 'inbound' : 'outbound';
@@ -239,12 +347,20 @@ async function loadRouteWindow(loadVariations = true) {
                 directionButton.disabled = false;
             }
             const etaBySequence = new Map();
-            (routeEtas || []).filter(eta => eta.dir === direction && Number(eta.service_type) === serviceType)
+            (routeEtas || []).filter(eta => eta.dir === direction && Number(eta.service_type) === serviceType && eta.eta)
                 .forEach(eta => {
+                    eta._co = 'KMB';
                     const sequence = String(eta.seq);
                     if (!etaBySequence.has(sequence)) etaBySequence.set(sequence, []);
                     etaBySequence.get(sequence).push(eta);
                 });
+            const otherEtaBySequence = state.crossOperator
+                ? await fetchOtherOperatorEtas(route, state.company, direction, serviceType)
+                : new Map();
+            otherEtaBySequence.forEach((etas, sequence) => {
+                if (!etaBySequence.has(sequence)) etaBySequence.set(sequence, []);
+                etaBySequence.get(sequence).push(...etas);
+            });
             etaBySequence.forEach(etas => etas.sort((a, b) => new Date(a.eta) - new Date(b.eta)));
             const stopDetails = await Promise.all((routeStops || []).map(stop => fetchKmbStop(stop.stop).catch(() => null)));
             if (!routeWindowState || routeWindowState !== state || state.requestId !== requestId) return;
@@ -263,7 +379,7 @@ async function loadRouteWindow(loadVariations = true) {
                     : '';
                 const etas = (etaBySequence.get(String(stop.seq)) || []).slice(0, 3);
                 const etaHtml = etas.length
-                    ? etas.map(renderRouteStopEta).join('')
+                    ? etas.map(eta => renderRouteStopEta(eta, state.crossOperator)).join('')
                     : '<span class="route-stop-no-eta">暫無班次</span>';
                 return `<tr><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name"><span class="route-stop-name-text">${escapeHtml(displayName)}</span>${stopCodeHtml}</td><td class="route-stop-times">${etaHtml}</td></tr>`;
             }).join('');
@@ -294,15 +410,21 @@ async function loadRouteWindow(loadVariations = true) {
                 Promise.all((routeStops || []).map(stop => fetchCtbJson(`${ROUTE_API.ctb.stop}/${encodeURIComponent(stop.stop)}`).catch(() => null))),
                 Promise.all((routeStops || []).map(stop => fetchCtbJson(`${ROUTE_API.ctb.eta}/${encodeURIComponent(stop.stop)}/${encodeURIComponent(route)}`).catch(() => [])))
             ]);
+            const otherEtaBySequence = state.crossOperator
+                ? await fetchOtherOperatorEtas(route, state.company, direction, 1)
+                : new Map();
             if (!routeWindowState || routeWindowState !== state || state.requestId !== requestId) return;
             const rows = (routeStops || []).map((stop, index) => {
                 const detail = stopDetails[index];
                 const name = detail?.name_tc || detail?.name_en || stop.stop;
-                const etas = (stopEtas[index] || [])
+                const ctbEtas = (stopEtas[index] || [])
                     .filter(eta => eta.dir === direction && eta.eta)
                     .sort((a, b) => new Date(a.eta) - new Date(b.eta))
+                    .map(eta => ({ ...eta, _co: 'CTB' }));
+                const etas = ctbEtas.concat(otherEtaBySequence.get(String(stop.seq)) || [])
+                    .sort((a, b) => new Date(a.eta) - new Date(b.eta))
                     .slice(0, 3);
-                const etaHtml = etas.length ? etas.map(renderRouteStopEta).join('') : '<span class="route-stop-no-eta">暫無班次</span>';
+                const etaHtml = etas.length ? etas.map(eta => renderRouteStopEta(eta, state.crossOperator)).join('') : '<span class="route-stop-no-eta">暫無班次</span>';
                 const stopCodeHtml = `<span class="route-stop-code">${escapeHtml(stop.stop)}<button class="route-stop-info-button" type="button" data-company="CTB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(name)}" data-stop-code="${escapeHtml(stop.stop)}" title="查看本站到站時間" aria-label="查看${escapeHtml(name)}到站時間">i</button></span>`;
                 return `<tr><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name"><span class="route-stop-name-text">${escapeHtml(name)}</span>${stopCodeHtml}</td><td class="route-stop-times">${etaHtml}</td></tr>`;
             }).join('');
