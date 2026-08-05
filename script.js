@@ -1,19 +1,15 @@
 // ===== App Version =====
-const APP_VERSION = "v0.40";
+const APP_VERSION = "v0.41";
 
 // ===== Runtime State =====
 const STOP_CACHE = {};
 
-const API_BASE = "https://data.etabus.gov.hk/v1/transport/kmb/stop-eta";
-const CTB_API_BASE = "https://rt.data.gov.hk/v1/transport/batch/stop-eta/CTB";
-const GMB_API_BASE = "https://data.etagmb.gov.hk/eta/route-stop";
+const APP_API = window.API_ENDPOINTS;
 
 // List of CORS proxies to try in order
-const CORS_PROXIES = [
-    (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-    (url) => `https://thingproxy.freeboard.io/fetch/${url}` 
-];
+const CORS_PROXIES = APP_API.gmb.proxyTemplates.map(template => url => template
+    .replace('{url}', encodeURIComponent(url))
+    .replace('{rawUrl}', url));
 
 // Apply page title from config
 document.getElementById('page-title').textContent = PAGE_TITLE + ' ' + APP_VERSION;
@@ -83,7 +79,7 @@ function getSortedStops() {
 
 async function fetchStopETA(stopId) {
     try {
-        const response = await fetch(`${API_BASE}/${stopId}?t=${Date.now()}`, { cache: "no-store" });
+        const response = await fetch(`${APP_API.kmb.stopEta}/${stopId}?t=${Date.now()}`, { cache: "no-store" });
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
         // console.log(`Fetched data for ${stopId}:`, data);
@@ -96,7 +92,7 @@ async function fetchStopETA(stopId) {
 
 async function fetchCitybusStopETA(stopId) {
     try {
-        const response = await fetch(`${CTB_API_BASE}/${stopId}?lang=zh-hant&t=${Date.now()}`, { cache: "no-store" });
+        const response = await fetch(`${APP_API.ctb.stopEta}/${stopId}?lang=zh-hant&t=${Date.now()}`, { cache: "no-store" });
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
         return data.data || [];
@@ -107,7 +103,7 @@ async function fetchCitybusStopETA(stopId) {
 }
 
 async function fetchGMBStopETA(routeId, stopId) {
-    const targetUrl = `${GMB_API_BASE}/${routeId}/${stopId}`;
+    const targetUrl = `${APP_API.gmb.routeStopEta}/${routeId}/${stopId}`;
     let lastError = null;
 
     for (const proxyFn of CORS_PROXIES) {
@@ -183,46 +179,6 @@ function formatTimeHtml(timestamp) {
     return `${hours}:${mins}<span class="time-seconds">:${secs}</span>`;
 }
 
-function formatTimeHtmlMinMode(timestamp) {
-    if (!timestamp) return '-';
-    const date = new Date(timestamp);
-    const hours = date.getHours().toString().padStart(2, '0');
-    const mins = date.getMinutes().toString().padStart(2, '0');
-    const secs = date.getSeconds().toString().padStart(2, '0');
-    return `${hours}:${mins}:${secs}`;
-}
-
-function formatDuration(timestamp, remark) {
-    if (!timestamp) return '-';
-    const eta = new Date(timestamp);
-    if (isNaN(eta.getTime())) return '-';
-    const now = new Date();
-    let diffMs = eta - now;
-
-    if (diffMs <= 0) {
-        return '<span class="arriving-text">進站中</span>';
-    }
-
-    const diffMins = Math.floor(diffMs / 60000);
-    if (isNaN(diffMins)) return '-';
-    const diffSecs = Math.floor((diffMs % 60000) / 1000);
-    const paddedSecs = diffSecs.toString().padStart(2, '0');
-    const isScheduled = remark === '原定班次';
-
-    if (!isScheduled) {
-        if (diffMins < 5) {
-            if (diffMins < 1) {
-                if (diffSecs === 0) return '<span class="arriving-text">進站中</span>';
-                return `${diffSecs}s`;
-            }
-            return `${diffMins}:${paddedSecs}`;
-        }
-    }
-
-    if (diffMins < 1) return '<span class="arriving-text">進站中</span>';
-    return `${diffMins} m`;
-}
-
 function formatMinutes(timestamp) {
     // Deprecated
     return formatDuration(timestamp);
@@ -257,6 +213,23 @@ function formatRouteNumber(route) {
     return route;
 }
 
+function getRouteNumberClass(route, company) {
+    const routeValue = String(route || '');
+    let routeClass = 'route-no';
+
+    if (/^\d{3}[A-Za-z]?$/.test(routeValue) && routeValue.startsWith('9')) {
+        routeClass += ' route-9xx';
+    } else if (company === 'CTB') {
+        routeClass += /^A/i.test(routeValue) ? ' ctb-airport' : ' ctb';
+    } else if (company === 'GMB') {
+        routeClass += ' gmb';
+    } else if (company === 'KMB' && /^[AES]/i.test(routeValue)) {
+        routeClass += ' text-orange';
+    }
+
+    return routeClass;
+}
+
 async function processStopGroup(stopGroup) {
     const isGMBGroup = stopGroup.stops.every(s => s.type === 'GMB');
     const section = document.createElement('div');
@@ -264,36 +237,6 @@ async function processStopGroup(stopGroup) {
     const titleClass = isGMBGroup ? 'stop-title gmb-title' : 'stop-title';
     section.innerHTML = `<div class="${titleClass}">${stopGroup.name}</div>`;
 
-    // Route filter/exclude helper supporting direction: "ROUTE|O" or "ROUTE|I"
-    function isRouteAllowed(route, dir) {
-        const filterList = stopGroup.filter;
-        const excludeList = stopGroup.exclude;
-        // If filter is set, only allow matching routes
-        if (filterList && filterList.length > 0) {
-            return filterList.some(entry => {
-                const parts = entry.split('|');
-                const r = parts[0];
-                const d = parts[1] || null; // O or I
-                if (r !== route) return false;
-                if (d && d !== dir) return false;
-                return true;
-            });
-        }
-        // If exclude is set, block matching routes
-        if (excludeList && excludeList.length > 0) {
-            const excluded = excludeList.some(entry => {
-                const parts = entry.split('|');
-                const r = parts[0];
-                const d = parts[1] || null;
-                if (r !== route) return false;
-                if (d && d !== dir) return false;
-                return true;
-            });
-            return !excluded;
-        }
-        return true;
-    }
-    
     // We create a new table structure. 
     // Note: The render function will copy this innerHTML to the DOM element later.
     const table = document.createElement('table');
@@ -309,7 +252,7 @@ async function processStopGroup(stopGroup) {
             const routeGroups = {};
             etas.forEach(eta => {
                 const route = eta.route;
-                if (!isRouteAllowed(route, eta.dir)) return;
+                if (!isStopEtaRouteAllowed(route, eta.dir, stopGroup, stop)) return;
                 const key = `${route}_${eta.dir}`;
                 if (!routeGroups[key]) routeGroups[key] = [];
                 routeGroups[key].push(eta);
@@ -397,8 +340,7 @@ async function processStopGroup(stopGroup) {
             const routeGroups = {};
             etas.forEach(eta => {
                 const route = eta.route;
-                if (!isRouteAllowed(route, eta.dir)) return;
-                if (routes.length > 0 && !routes.includes(route)) return;
+                if (!isStopEtaRouteAllowed(route, eta.dir, stopGroup, stop)) return;
                 
                 const key = `${route}_${eta.dir}`;
                 if (!routeGroups[key]) routeGroups[key] = [];
@@ -682,11 +624,13 @@ async function processStopGroup(stopGroup) {
                 if (group.stopCodes.CTB) codes.push(group.stopCodes.CTB.code);
                 let dirClass = effectiveDir === 'O' ? 'outbound' : 'inbound';
                 let dirCircleHtml = `<span class="dir-circle ${dirClass}"></span>`;
-                // The stop-ETA popup uses KMB's API, so only expose it for a KMB stop.
                 const kmbStopId = group.stopIds && group.stopIds.KMB;
+                const ctbStopId = group.stopIds && group.stopIds.CTB;
+                const infoStopId = kmbStopId || ctbStopId;
+                const infoCompany = kmbStopId ? 'KMB' : 'CTB';
                 const stopName = stopGroup.name || '';
-                const infoButtonHtml = kmbStopId
-                    ? `<button class="route-stop-info-button" type="button" data-stop-id="${escapeHtml(kmbStopId)}" data-stop-name="${escapeHtml(stopName)}" data-stop-code="${escapeHtml(codes.join(' / '))}" title="查看本站到站時間" aria-label="查看${escapeHtml(stopName)}到站時間">i</button>`
+                const infoButtonHtml = infoStopId
+                    ? `<button class="route-stop-info-button" type="button" data-company="${infoCompany}" data-stop-id="${escapeHtml(infoStopId)}" data-stop-name="${escapeHtml(stopName)}" data-stop-code="${escapeHtml(codes.join(' / '))}" title="查看本站到站時間" aria-label="查看${escapeHtml(stopName)}到站時間">i</button>`
                     : '';
                 stopCodeHtml += `<span class="stop-code">${dirCircleHtml} ${codes.join(' / ')}${infoButtonHtml}</span>`;
             } else if (group.company !== 'GMB') {
@@ -698,9 +642,14 @@ async function processStopGroup(stopGroup) {
                 const kmbStopId = group.company === 'KMB'
                     ? group.stopId
                     : (group.stopIds && group.stopIds.KMB);
+                const ctbStopId = group.company === 'CTB'
+                    ? group.stopId
+                    : (group.stopIds && group.stopIds.CTB);
+                const infoStopId = kmbStopId || ctbStopId;
+                const infoCompany = kmbStopId ? 'KMB' : 'CTB';
                 const stopName = stopGroup.name || '';
-                const infoButtonHtml = kmbStopId
-                    ? `<button class="route-stop-info-button" type="button" data-stop-id="${escapeHtml(kmbStopId)}" data-stop-name="${escapeHtml(stopName)}" data-stop-code="${escapeHtml(group.stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(stopName)}到站時間">i</button>`
+                const infoButtonHtml = infoStopId
+                    ? `<button class="route-stop-info-button" type="button" data-company="${infoCompany}" data-stop-id="${escapeHtml(infoStopId)}" data-stop-name="${escapeHtml(stopName)}" data-stop-code="${escapeHtml(group.stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(stopName)}到站時間">i</button>`
                     : '';
                 stopCodeHtml += `<span class="stop-code">${dirCircleHtml} ${group.stopCode}${infoButtonHtml}</span>`;
             }
@@ -709,24 +658,7 @@ async function processStopGroup(stopGroup) {
             const displayCompany = (group.companies && group.companies.size > 1 && uniqueEtas[0] && uniqueEtas[0]._co)
                 ? uniqueEtas[0]._co : group.company;
 
-            let routeClass = 'route-no';
-            // Pure 3-digit number routes (with optional alpha suffix) get green
-            if (/^\d{3}[A-Za-z]?$/.test(group.route)&& group.route.startsWith('9')) {
-                routeClass += ' route-9xx';
-            } else if (displayCompany === 'CTB') {
-                if (/^A/i.test(group.route)) {
-                    routeClass += ' ctb-airport'; // Airport CTB routes (A22, A26, etc.)
-                } else {
-                    routeClass += ' ctb';
-                }
-            } else if (displayCompany === 'GMB') {
-                routeClass += ' gmb';
-            } else if (displayCompany === 'KMB') {
-                if (/^[AES]/i.test(group.route)) {
-                    routeClass += ' text-orange';
-                }
-            }
-
+            const routeClass = getRouteNumberClass(group.route, displayCompany);
             let routeTextClass = 'route-text';
             if (group.route.length >= 4) {
                 routeTextClass += ' long-route-text';

@@ -1,5 +1,5 @@
 // ===== KMB Stop ETA Floating Window =====
-const KMB_STOP_ETA_API_BASE = 'https://data.etabus.gov.hk/v1/transport/kmb/stop-eta';
+const STOP_API = window.API_ENDPOINTS;
 let stopEtaWindowState = null;
 
 function closeStopEtaWindow() {
@@ -22,9 +22,9 @@ function renderStopEtaItem(eta) {
     </div>`;
 }
 
-async function openStopEtaWindow(stopId, stopName, stopCode) {
+async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB') {
     closeStopEtaWindow();
-    const state = { stopId, stopName, stopCode };
+    const state = { stopId, stopName, stopCode, company };
     stopEtaWindowState = state;
     const overlay = document.createElement('div');
     overlay.className = 'route-window-overlay stop-eta-window-overlay';
@@ -40,32 +40,50 @@ async function openStopEtaWindow(stopId, stopName, stopCode) {
 
     overlay.innerHTML = `
         <section class="route-window stop-eta-window" role="dialog" aria-modal="true" aria-label="巴士站到站時間">
-            <header class="route-window-header"><div class="stop-eta-window-title" style="flex-direction:row;align-items:baseline;gap:8px"><span>${escapeHtml(displayName)}</span> ${interchangeBadgeHtml} ${stopCode ? `<span class="stop-eta-code">${escapeHtml(stopCode)}</span>` : ''}</div></header>
+            <header class="route-window-header">
+                <div class="stop-eta-window-title" style="flex-direction:row;align-items:baseline;gap:8px"><span>${escapeHtml(displayName)}</span> ${interchangeBadgeHtml} ${stopCode ? `<span class="stop-eta-code">${escapeHtml(stopCode)}</span>` : ''}</div>
+                <div class="route-window-actions">
+                    <button class="route-window-refresh" type="button" title="重新整理" aria-label="重新整理">F5</button>
+                </div>
+            </header>
             <button class="route-window-close" type="button" title="關閉" aria-label="關閉">×</button>
             <div class="route-window-content"><div class="route-window-loading">載入中...</div></div>
         </section>`;
     overlay.addEventListener('click', event => { if (event.target === overlay) closeStopEtaWindow(); });
     overlay.querySelector('.route-window-close').addEventListener('click', closeStopEtaWindow);
+    overlay.querySelector('.route-window-refresh').addEventListener('click', () => {
+        openStopEtaWindow(state.stopId, state.stopName, state.stopCode, state.company);
+    });
     document.body.appendChild(overlay);
 
     try {
-        const response = await fetch(`${KMB_STOP_ETA_API_BASE}/${encodeURIComponent(stopId)}?t=${Date.now()}`, { cache: 'no-store' });
-        if (!response.ok) throw new Error(`KMB stop ETA request failed (${response.status})`);
+        const isCtb = company === 'CTB';
+        const endpoint = isCtb ? STOP_API.ctb.stopEta : STOP_API.kmb.stopEta;
+        const query = isCtb ? `?lang=zh-hant&t=${Date.now()}` : `?t=${Date.now()}`;
+        const response = await fetch(`${endpoint}/${encodeURIComponent(stopId)}${query}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`${company} stop ETA request failed (${response.status})`);
         const { data } = await response.json();
         if (stopEtaWindowState !== state) return;
         const routes = new Map();
         (data || []).filter(eta => eta.eta).forEach(eta => {
-            const key = `${eta.route}|${eta.dir}|${eta.service_type}`;
-            if (!routes.has(key)) routes.set(key, { route: eta.route, destination: eta.dest_tc || eta.dest_en || '', etas: [] });
+            const key = isCtb ? `${eta.route}|${eta.dir}` : `${eta.route}|${eta.dir}|${eta.service_type}`;
+            if (!routes.has(key)) routes.set(key, { route: eta.route, destination: eta.dest_tc || eta.dest_en || eta.dest || '', etas: [] });
             routes.get(key).etas.push(eta);
         });
         const rows = [...routes.values()].map(item => {
             item.etas.sort((a, b) => new Date(a.eta) - new Date(b.eta));
-            return `<tr><td class="stop-eta-route">${formatRouteNumber(item.route)}</td><td class="stop-eta-destination">${escapeHtml(item.destination)}</td><td class="stop-eta-times">${item.etas.slice(0, 3).map(renderStopEtaItem).join('')}</td></tr>`;
+            var routeClass = 'stop-eta-route route-no ' + getRouteNumberClass(item.route, company);
+            if (item.route.length >= 4) {
+                routeClass += ' long-route-text';
+            }
+            const routeCell = `<td class="${routeClass}" data-company="${escapeHtml(company)}" data-route="${escapeHtml(item.route)}">${formatRouteNumber(item.route)}</td>`;
+            const destinationCell = `<td class="stop-eta-destination">${escapeHtml(item.destination)}</td>`;
+            const timesCell = `<td class="stop-eta-times">${item.etas.slice(0, 3).map(renderStopEtaItem).join('')}</td>`;
+            return `<tr>${routeCell}${destinationCell}${timesCell}</tr>`;
         }).join('');
         overlay.querySelector('.route-window-content').innerHTML = `<table class="stop-eta-table"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">暫無班次</td></tr>'}</tbody></table>`;
     } catch (error) {
-        console.error('Unable to load KMB stop ETA window:', error);
+        console.error(`Unable to load ${company} stop ETA window:`, error);
         if (stopEtaWindowState === state) overlay.querySelector('.route-window-content').innerHTML = '<div class="route-window-message">未能取得到站時間，請稍後再試。</div>';
     }
 }
@@ -74,5 +92,5 @@ document.addEventListener('click', event => {
     const button = event.target.closest('.route-stop-info-button');
     if (!button) return;
     event.stopPropagation();
-    openStopEtaWindow(button.dataset.stopId, button.dataset.stopName, button.dataset.stopCode);
+    openStopEtaWindow(button.dataset.stopId, button.dataset.stopName, button.dataset.stopCode, button.dataset.company || 'KMB');
 });

@@ -52,7 +52,9 @@
     async function start() {
         try {
             renderSharedShell();
+            await loadScript('data.js');
             await loadScript(location.config);
+            await loadScript('stop-eta.js');
             await loadScript('script.js');
             await loadScript('route-win.js');
             await loadScript('stop-win.js');

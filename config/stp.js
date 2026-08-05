@@ -1,6 +1,6 @@
 // ===== Page Configuration =====
 const PAGE_TITLE = "科學園收工搭車關注組";
-const KMB_STOP_URL = "https://data.etabus.gov.hk/v1/transport/kmb/stop";
+const KMB_STOP_URL = window.API_ENDPOINTS.kmb.stop;
 
 // ===== Stop Definitions =====
 const STOPS = [

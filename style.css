@@ -37,6 +37,7 @@
     --font-stop-label: 1.3rem;
     --font-destination-remark: 0.9rem;
     --font-eta-time: 1.6rem;
+    --font-win-eta-time: 0.75rem;
     --font-arriving: 0.9em;
     --font-eta-exact: 1.1em;
     --font-eta-min: 0.6em;
@@ -47,7 +48,7 @@
     --font-time-exact: 1.2em;
     --font-eta-tag-small: 0.6rem;
     --font-time-seconds: 0.5em;
-    --font-route-route: 2rem;
+    --font-route-route: 2.2rem;
     --font-route-stop-name: 1.4rem;
     --refresh-clock-clearance: 96px;
     --page-margin: 20px;
@@ -79,10 +80,6 @@ header {
 }
 
 #refresh-btn {
-    position: fixed;
-    z-index: 10;
-    top: var(--page-margin);
-    right: var(--page-margin);
     background-color: #5cb85c;
     color: var(--color-text);
     border: none;
@@ -106,7 +103,6 @@ h1 {
 #clock {
     font-size: var(--font-clock);
     font-weight: bold;
-    margin-right: var(--refresh-clock-clearance);
 }
 
 .stop-section {
@@ -208,6 +204,8 @@ h1 {
     margin-left: 10px;
     font-weight: normal;
     vertical-align: middle;
+    position: relative;
+    top: 1px;
 }
 
 .dir-circle {
@@ -414,6 +412,19 @@ h1 {
 
 .route-window-refresh:hover { background: #4cae4c; }
 
+/* Keep the stop-window refresh control from increasing the header height. */
+.stop-eta-window .route-window-actions {
+    position: absolute;
+    top: 5px;
+    right: 42px;
+}
+.stop-eta-window .route-window-refresh {
+    min-width: 42px;
+    height: 28px;
+    padding: 0 8px;
+    font-size: 0.9rem;
+}
+
 .route-direction-button {
     width: 34px;
     height: 34px;
@@ -470,7 +481,7 @@ h1 {
 .route-stop-name-text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .route-stop-name-marquee-text { display: inline-block; }
 .route-stop-name-marquee .route-stop-name-marquee-text { animation: route-stop-marquee 7s ease-in-out infinite alternate; }
-.route-stop-code { display: block; margin-top: 2px; color: var(--color-stop-code); font-size: var(--font-stop-code); font-weight: normal; }
+.route-stop-code { display: block; margin-top: 2px; color: var(--color-stop-code); font-size: var(--font-stop-code); font-weight: normal; position: relative; top: 1px; }
 .route-stop-interchange { font-size: 0.85em; }
 .route-stop-info-button {
     width: 16px;
@@ -484,13 +495,15 @@ h1 {
     cursor: pointer;
     font: bold 0.8rem/1 "Courier New", monospace;
     vertical-align: middle;
+    position: relative;
+    top: -1px;
 }
 .route-stop-info-button:hover { background: var(--color-grey); }
 .route-stop-times { display: table-cell; width: 252px; min-width: 252px; text-align: left; white-space: nowrap; }
 .route-stop-times .eta-item { display: inline-flex; width: 84px; vertical-align: middle; }
 .route-stop-times .eta-large,
 .route-stop-times .eta-small { white-space: nowrap; }
-.route-stop-times .eta-remark-tag { font-size: 0.65rem; }
+.route-stop-times .eta-remark-tag { font-size: var(--font-win-eta-time); }
 .route-stop-times .eta-item.arriving .eta-remark-tag { font-weight: bold; }
 .route-stop-no-eta { color: var(--color-dark-grey); font-size: .85rem; }
 
@@ -522,6 +535,7 @@ h1 {
 }
 .stop-eta-code {
     display: inline-block;
+    font-size: calc(var(--font-route-stop-name) * 0.8);
     font-weight: normal;
     color: var(--color-stop-code);
     margin-left: 8px;
@@ -529,9 +543,9 @@ h1 {
 }
 .stop-eta-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .stop-eta-table tr + tr { border-top: 1px solid #292929; }
-.stop-eta-table td { padding: 8px 4px; vertical-align: middle; }
-.stop-eta-route { width: 92px; color: var(--color-kmb); font-size: var(--font-route-route); font-weight: bold; }
-.stop-eta-route.route-suffix { font-size: calc(var(--font-route-route) * 0.75); }
+.stop-eta-table td { padding: 4px 4px; vertical-align: middle; }
+.stop-eta-route { width: 80px; font-size: var(--font-route-route); font-weight: bold; }
+.stop-eta-route .route-suffix { font-size: calc(var(--font-route-route) * 0.75); }
 .stop-eta-times { width: 240px; max-width: 240px; text-align: left; white-space: nowrap; overflow: hidden; }
 .stop-eta-destination { overflow: hidden; color: var(--color-text); font-size: var(--font-route-stop-name); font-weight: bold; text-overflow: ellipsis; white-space: nowrap; }
 .stop-eta-times .eta-item {
@@ -543,7 +557,7 @@ h1 {
     box-sizing: border-box;
     padding: 2px 4px;
 }
-.stop-eta-table td.stop-eta-route { width: 92px; }
+.stop-eta-table td.stop-eta-route { min-width: 80px; }
 .stop-eta-table td.stop-eta-times { width: 220px; }
 .stop-eta-table td.stop-eta-destination { width: calc(100% - 92px - 220px); }
 
@@ -552,12 +566,20 @@ h1 {
     width: 270px !important;
     min-width: 140px !important;
 }
+.route-window .stop-eta-table.stop-eta-columns-1 .stop-eta-times {
+    width: 80px !important;
+    min-width: 80px !important;
+}
+.route-window .stop-eta-table.stop-eta-columns-2 .stop-eta-times {
+    width: 160px !important;
+    min-width: 160px !important;
+}
 .route-window .stop-eta-times .eta-item {
     width: 80px !important;
 }
 .stop-eta-times .eta-large,
 .stop-eta-times .eta-small { white-space: nowrap; }
-.stop-eta-times .eta-remark-tag { font-size: 0.65rem; }
+.stop-eta-times .eta-remark-tag { font-size: var(--font-win-eta-time); }
 
 .dest-remark {
     color: var(--color-kmb);
@@ -587,7 +609,7 @@ h1 {
 
 @keyframes route-stop-marquee {
     0%, 15% { transform: translateX(0); }
-    85%, 100% { transform: translateX(var(--route-stop-marquee-distance)); }
+    85%, 100% { transform: translateX(-100%); }
 }
 
 .eta-remark {
@@ -748,25 +770,30 @@ input:checked + .slider:before {
     }
 
     #refresh-btn {
-        padding: 6px 15px;
-        font-size: var(--font-button);
+        top: 60px;
     }
     .eta-item-last { display: none; }
 
     .route-window-title { width: 100%; }
     .route-window-actions { margin-top: 6px; }
     .route-window-close { top: 8px; right: 8px; }
+    .stop-eta-window .route-window-actions { top: 8px; right: 48px; }
 }
 
 
 @media (max-width: 600px) {
     :root {
         --font-eta-time: 1.1em;
+        --font-win-eta-time: 0.65rem;
         --font-arriving: 0.9em;
         --font-eta-tag-small: 0.5rem;
-        --font-route-stop-name: 1.1rem;
+        --font-stop-code: 0.75rem;
+        --font-route-stop-name: 1.2rem;
     }
-
+    #refresh-btn {
+        padding: 6px 15px;
+        font-size: var(--font-button);
+    }
     header {
         flex-wrap: wrap;
     }
@@ -783,6 +810,7 @@ input:checked + .slider:before {
     }
 
     .eta-item { width: 80px; }
+    .long-route-text { font-family: "Arial Narrow", "Roboto Condensed", sans-serif; }
 
     .route-window-overlay { 
         align-items: flex-start;
@@ -810,7 +838,8 @@ input:checked + .slider:before {
     .route-window-journey { margin-left: 6px; font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; }
     .route-window-refresh { min-width: 42px; }
     .route-window-content { padding: 4px; }
-    .route-stop-table td { padding: 5px 2px; }
+    .route-window-content .stop-eta-table td { padding: 1px 4px; vertical-align: middle; }
+    .route-stop-table td { padding: 4px 2px; }
     .route-stop-times { width: 200px; min-width: 200px; }
     .route-stop-times .eta-item { width: 65px; padding: 2px; }
 
@@ -819,15 +848,32 @@ input:checked + .slider:before {
     }
 
     /* stop-eta specific adjustments on small screens */
-    .stop-eta-times { width: 180px; min-width: 120px; }
-    .stop-eta-times .eta-item { width: 64px; min-width: 48px; }
+    .route-window .stop-eta-route { width: 55px; font-size: var(--font-route); }
+    .route-window .stop-eta-route .route-suffix { font-size: calc(var(--font-route) * 0.75); }
+    .route-window .stop-eta-destination { font-size: var(--font-destination); }
+    .route-window .stop-eta-times {
+        width: 210px !important;
+        min-width: 210px !important;
+    }
+    .route-window .stop-eta-table.stop-eta-columns-1 .stop-eta-times {
+        width: 70px !important;
+        min-width: 70px !important;
+    }
+    .route-window .stop-eta-table.stop-eta-columns-2 .stop-eta-times {
+        width: 140px !important;
+        min-width: 140px !important;
+    }
+    .route-window .stop-eta-times .eta-item {
+        width: 70px !important;
+        min-width: 70px;
+        padding: 2px;
+    }
 }
 
 @media (max-width: 700px) {
     :root {
         --font-stop-label: 0.9rem;
         --font-stop-title: 1.2rem;
-        --font-stop-code: 0.75rem;
         --font-route: 2rem;
         --font-route-suffix: 1.5rem;
         --font-destination: 1.1rem;
@@ -862,7 +908,6 @@ input:checked + .slider:before {
     td.route-no, th.route-no { padding-right: 8px; }
 
     .stop-title { padding-left: 5px; }
-    .long-route-text { font-family: "Arial Narrow", "Roboto Condensed", sans-serif; }
     
     .eta-item { width: 68px; }
 

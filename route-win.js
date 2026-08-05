@@ -1,13 +1,6 @@
 // ===== Route ETA Floating Window =====
 // Kept separate from the main stop monitor to make route-detail features easier to maintain.
-const KMB_ROUTE_API_BASE = "https://data.etabus.gov.hk/v1/transport/kmb/route";
-const KMB_ROUTE_STOP_API_BASE = "https://data.etabus.gov.hk/v1/transport/kmb/route-stop";
-const KMB_ROUTE_ETA_API_BASE = "https://data.etabus.gov.hk/v1/transport/kmb/route-eta";
-const KMB_STOP_API_BASE = "https://data.etabus.gov.hk/v1/transport/kmb/stop";
-const CTB_ROUTE_API_BASE = "https://rt.data.gov.hk/v2/transport/citybus/route/CTB";
-const CTB_ROUTE_STOP_API_BASE = "https://rt.data.gov.hk/v2/transport/citybus/route-stop/CTB";
-const CTB_STOP_API_BASE = "https://rt.data.gov.hk/v2/transport/citybus/stop";
-const CTB_ETA_API_BASE = "https://rt.data.gov.hk/v2/transport/citybus/eta/CTB";
+const ROUTE_API = window.API_ENDPOINTS;
 const ROUTE_STOP_CACHE = {};
 let kmbRouteListPromise = null;
 let routeWindowState = null;
@@ -34,7 +27,7 @@ async function fetchCtbJson(url) {
 
 async function fetchKmbStop(stopId) {
     if (!ROUTE_STOP_CACHE[stopId]) {
-        ROUTE_STOP_CACHE[stopId] = fetchKmbJson(`${KMB_STOP_API_BASE}/${encodeURIComponent(stopId)}`)
+        ROUTE_STOP_CACHE[stopId] = fetchKmbJson(`${ROUTE_API.kmb.stop}/${encodeURIComponent(stopId)}`)
             .catch(error => {
                 delete ROUTE_STOP_CACHE[stopId];
                 throw error;
@@ -54,7 +47,7 @@ function getConfiguredStopCode(stopId) {
 
 async function getRouteVariations(route, direction) {
     if (!kmbRouteListPromise) {
-        kmbRouteListPromise = fetchKmbJson(`${KMB_ROUTE_API_BASE}/`)
+        kmbRouteListPromise = fetchKmbJson(`${ROUTE_API.kmb.route}/`)
             .catch(error => {
                 kmbRouteListPromise = null;
                 throw error;
@@ -83,9 +76,9 @@ function createRouteWindow() {
             <header class="route-window-header">
                 <div class="route-window-title"></div>
                 <div class="route-window-actions">
-                    <button class="route-window-refresh" type="button" title="重新整理" aria-label="重新整理">F5</button>
                     <button class="route-direction-button" type="button" title="切換方向" aria-label="切換方向"></button>
                     <button class="route-variation-button" type="button" title="行車路線" aria-label="行車路線"></button>
+                    <button class="route-window-refresh" type="button" title="重新整理" aria-label="重新整理">F5</button>
                 </div>
             </header>
             <button class="route-window-close" type="button" title="關閉" aria-label="關閉">×</button>
@@ -157,7 +150,7 @@ async function hasBothDirections(route) {
     // Ensure the KMB route list is loaded and check for multiple bounds
     if (!kmbRouteListPromise) {
         try {
-            kmbRouteListPromise = fetchKmbJson(`${KMB_ROUTE_API_BASE}/`);
+            kmbRouteListPromise = fetchKmbJson(`${ROUTE_API.kmb.route}/`);
         } catch (e) {
             return true; // fallback: assume both directions available
         }
@@ -223,9 +216,9 @@ async function loadRouteWindow(loadVariations = true) {
         try {
             const directionParam = direction === 'I' ? 'inbound' : 'outbound';
             const [routeInfo, routeStops, routeEtas, variations] = await Promise.all([
-                fetchKmbJson(`${KMB_ROUTE_API_BASE}/${encodeURIComponent(route)}/${directionParam}/${serviceType}`),
-                fetchKmbJson(`${KMB_ROUTE_STOP_API_BASE}/${encodeURIComponent(route)}/${directionParam}/${serviceType}`),
-                fetchKmbJson(`${KMB_ROUTE_ETA_API_BASE}/${encodeURIComponent(route)}/${serviceType}`),
+                fetchKmbJson(`${ROUTE_API.kmb.route}/${encodeURIComponent(route)}/${directionParam}/${serviceType}`),
+                fetchKmbJson(`${ROUTE_API.kmb.routeStop}/${encodeURIComponent(route)}/${directionParam}/${serviceType}`),
+                fetchKmbJson(`${ROUTE_API.kmb.routeEta}/${encodeURIComponent(route)}/${serviceType}`),
                 loadVariations ? getRouteVariations(route, direction) : Promise.resolve(state.variations)
             ]);
             if (!routeWindowState || routeWindowState !== state || state.requestId !== requestId) return;
@@ -266,7 +259,7 @@ async function loadRouteWindow(loadVariations = true) {
                 const interchangeName = interchangeMatch?.[1] || '';
                 if (interchangeMatch) displayName = interchangeMatch[2].trim();
                 const stopCodeHtml = stopCode || interchangeName
-                    ? `<span class="route-stop-code">${stopCode ? escapeHtml(stopCode) : ''}${interchangeName ? `<span class="route-stop-interchange">${stopCode ? ' ' : ''}${escapeHtml(interchangeName)}</span>` : ''}<button class="route-stop-info-button" type="button" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(displayName)}" data-stop-code="${escapeHtml(stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(displayName)}到站時間">i</button></span>`
+                    ? `<span class="route-stop-code">${stopCode ? escapeHtml(stopCode) : ''}<button class="route-stop-info-button" type="button" data-company="KMB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(displayName)}" data-stop-code="${escapeHtml(stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(displayName)}到站時間">i</button>${interchangeName ? `<span class="route-stop-interchange">${stopCode ? ' ' : ''}${escapeHtml(interchangeName)}</span>` : ''}</span>`
                     : '';
                 const etas = (etaBySequence.get(String(stop.seq)) || []).slice(0, 3);
                 const etaHtml = etas.length
@@ -283,8 +276,8 @@ async function loadRouteWindow(loadVariations = true) {
         try {
             const directionParam = direction === 'I' ? 'inbound' : 'outbound';
             const [routeInfo, routeStops] = await Promise.all([
-                fetchCtbJson(`${CTB_ROUTE_API_BASE}/${encodeURIComponent(route)}`),
-                fetchCtbJson(`${CTB_ROUTE_STOP_API_BASE}/${encodeURIComponent(route)}/${directionParam}`)
+                fetchCtbJson(`${ROUTE_API.ctb.route}/${encodeURIComponent(route)}`),
+                fetchCtbJson(`${ROUTE_API.ctb.routeStop}/${encodeURIComponent(route)}/${directionParam}`)
             ]);
             if (!routeWindowState || routeWindowState !== state || state.requestId !== requestId) return;
             state.variations = [1];
@@ -298,8 +291,8 @@ async function loadRouteWindow(loadVariations = true) {
             } catch (e) {}
 
             const [stopDetails, stopEtas] = await Promise.all([
-                Promise.all((routeStops || []).map(stop => fetchCtbJson(`${CTB_STOP_API_BASE}/${encodeURIComponent(stop.stop)}`).catch(() => null))),
-                Promise.all((routeStops || []).map(stop => fetchCtbJson(`${CTB_ETA_API_BASE}/${encodeURIComponent(stop.stop)}/${encodeURIComponent(route)}`).catch(() => [])))
+                Promise.all((routeStops || []).map(stop => fetchCtbJson(`${ROUTE_API.ctb.stop}/${encodeURIComponent(stop.stop)}`).catch(() => null))),
+                Promise.all((routeStops || []).map(stop => fetchCtbJson(`${ROUTE_API.ctb.eta}/${encodeURIComponent(stop.stop)}/${encodeURIComponent(route)}`).catch(() => [])))
             ]);
             if (!routeWindowState || routeWindowState !== state || state.requestId !== requestId) return;
             const rows = (routeStops || []).map((stop, index) => {
@@ -310,7 +303,8 @@ async function loadRouteWindow(loadVariations = true) {
                     .sort((a, b) => new Date(a.eta) - new Date(b.eta))
                     .slice(0, 3);
                 const etaHtml = etas.length ? etas.map(renderRouteStopEta).join('') : '<span class="route-stop-no-eta">暫無班次</span>';
-                return `<tr><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name"><span class="route-stop-name-text">${escapeHtml(name)}</span><span class="route-stop-code">${escapeHtml(stop.stop)}</span></td><td class="route-stop-times">${etaHtml}</td></tr>`;
+                const stopCodeHtml = `<span class="route-stop-code">${escapeHtml(stop.stop)}<button class="route-stop-info-button" type="button" data-company="CTB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(name)}" data-stop-code="${escapeHtml(stop.stop)}" title="查看本站到站時間" aria-label="查看${escapeHtml(name)}到站時間">i</button></span>`;
+                return `<tr><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name"><span class="route-stop-name-text">${escapeHtml(name)}</span>${stopCodeHtml}</td><td class="route-stop-times">${etaHtml}</td></tr>`;
             }).join('');
             content.innerHTML = `<table class="route-stop-table"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">未能取得站點資料。</td></tr>'}</tbody></table>`;
         } catch (error) {
