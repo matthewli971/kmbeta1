@@ -1,0 +1,13 @@
+https://data.etabus.gov.hk/v1/transport/kmb/route/272S/inbound/1
+https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/A9459D38A4A41F36
+
+A9459D38A4A41F36: SP Phase 3 (272A)
+6E821768CA09E8C9: SP Phase 3 (272S) https://data.etabus.gov.hk/v1/transport/kmb/eta/6E821768CA09E8C9/272S/1
+
+SP Phase 3 (272S) https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/6E821768CA09E8C9
+Fo Yin Road (74D/74P/96) https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/B644204AEDE7A031
+
+Tate's Cairn (272S/85X)  https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/3114213F8975F536
+Tate's Cairn (80X/88X)   https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/30D564180B68ECA8
+
+GMB 27: https://data.etagmb.gov.hk/eta/route-stop/2007862/20015843
