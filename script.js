@@ -1,5 +1,5 @@
 // ===== App Version =====
-const APP_VERSION = "v0.42";
+const APP_VERSION = "v0.43";
 
 // ===== Runtime State =====
 const STOP_CACHE = {};
@@ -247,7 +247,7 @@ async function processStopGroup(stopGroup) {
 
     const promises = stopGroup.stops.map(async stop => {
         if (stop.type === 'CTB') {
-            const etas = await fetchCitybusStopETA(stop.id);
+            const etas = (await fetchCitybusStopETA(stop.id)).filter(eta => eta.eta);
             // Group by route and dir
             const routeGroups = {};
             etas.forEach(eta => {
@@ -333,7 +333,7 @@ async function processStopGroup(stopGroup) {
             STOP_CACHE[cacheKey] = groups;
             return groups;
         } else {
-            const etas = await fetchStopETA(stop.id);
+            const etas = (await fetchStopETA(stop.id)).filter(eta => eta.eta);
             const routes = stop.routes || [];
             
             // Group by route and dir
@@ -389,7 +389,7 @@ async function processStopGroup(stopGroup) {
         // Use company-agnostic key for KMB/CTB to merge co-operated routes
         // Use route only (no dir/dest) since at a given stop group, same route from KMB/CTB is the same service
         const coKey = (group.company === 'KMB' || group.company === 'CTB') ? 'BUS' : group.company;
-        const key = `${coKey}-${group.route}`;
+        const key = `${coKey}-${group.route}-${group.dir}`;
         if (!mergedGroups[key]) {
             mergedGroups[key] = {
                 ...group,
