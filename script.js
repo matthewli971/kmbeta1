@@ -1,19 +1,13 @@
 // ===== App Version =====
-const APP_VERSION = "v0.43";
+const APP_VERSION = "v0.44";
 
 // ===== Runtime State =====
 const STOP_CACHE = {};
 
-const APP_API = window.API_ENDPOINTS;
-
-// List of CORS proxies to try in order
-const CORS_PROXIES = APP_API.gmb.proxyTemplates.map(template => url => template
-    .replace('{url}', encodeURIComponent(url))
-    .replace('{rawUrl}', url));
-
 // Apply page title from config
-document.getElementById('page-title').textContent = PAGE_TITLE + ' ' + APP_VERSION;
-document.title = PAGE_TITLE;
+document.getElementById('app-title').textContent = APP_TITLE;
+document.getElementById('app-version').textContent = APP_VERSION;
+document.title = APP_TITLE;
 
 function applyDestReplacement(dest) {
     if (!dest) return dest;
@@ -75,99 +69,6 @@ function getSortedStops() {
         const indexB = orderMap.has(b.id) ? orderMap.get(b.id) : 999;
         return indexA - indexB;
     });
-}
-
-async function fetchStopETA(stopId) {
-    try {
-        const response = await fetch(`${APP_API.kmb.stopEta}/${stopId}?t=${Date.now()}`, { cache: "no-store" });
-        if (!response.ok) throw new Error('Network response was not ok');
-        const data = await response.json();
-        // console.log(`Fetched data for ${stopId}:`, data);
-        return data.data || [];
-    } catch (error) {
-        console.error(`Error fetching ETA for stop ${stopId}:`, error);
-        return [];
-    }
-}
-
-async function fetchCitybusStopETA(stopId) {
-    try {
-        const response = await fetch(`${APP_API.ctb.stopEta}/${stopId}?lang=zh-hant&t=${Date.now()}`, { cache: "no-store" });
-        if (!response.ok) throw new Error('Network response was not ok');
-        const data = await response.json();
-        return data.data || [];
-    } catch (error) {
-        console.error(`Error fetching Citybus ETA for ${stopId}:`, error);
-        return [];
-    }
-}
-
-async function fetchGMBStopETA(routeId, stopId) {
-    const targetUrl = `${APP_API.gmb.routeStopEta}/${routeId}/${stopId}`;
-    let lastError = null;
-
-    for (const proxyFn of CORS_PROXIES) {
-        try {
-            // Add a small jitter avoid hitting rate limits instantly on retry
-            await new Promise(r => setTimeout(r, Math.floor(Math.random() * 500) + 200));
-
-            const urlWithTs = `${targetUrl}?t=${Date.now()}`;
-            const proxyUrl = proxyFn(urlWithTs);
-            
-            const response = await fetch(proxyUrl, { cache: "no-store" });
-            
-            if (!response.ok) {
-                // If 429 or 5xx, try next proxy
-                if (response.status === 429 || response.status >= 500) {
-                     console.warn(`Proxy ${proxyUrl} failed with ${response.status}, trying next...`);
-                     continue;
-                }
-                throw new Error(`Network response was not ok: ${response.status}`);
-            }
-
-            const json = await response.json();
-            const data = json.data || [];
-            
-            // Transform to match KMB/CTB structure
-            const mappedETAs = [];
-            const routeMeta = GMB_META[routeId.toString()];
-            const routeNo = routeMeta ? routeMeta.route : "?";
-
-            data.forEach(dirGroup => {
-                const seq = dirGroup.route_seq;
-                const destName = routeMeta ? routeMeta[seq] : `Seq ${seq}`;
-                const etas = dirGroup.eta || [];
-
-                etas.forEach(item => {
-                    // Skip if no timestamp and no remark
-                    if (!item.timestamp && !item.remarks_tc) return;
-
-                    mappedETAs.push({
-                        co: "GMB",
-                        route: routeNo,
-                        dir: seq.toString(),
-                        service_type: 1,
-                        seq: item.eta_seq,
-                        dest_tc: destName,
-                        dest_en: destName, // Use Chinese for both for now or map English if needed
-                        eta: item.timestamp || null,
-                        rmk_tc: item.remarks_tc || "",
-                        rmk_en: item.remarks_en || "",
-                        data_timestamp: new Date().toISOString()
-                    });
-                });
-            });
-
-            return mappedETAs; // Success, return immediately
-        } catch (error) {
-            console.warn(`Proxy attempt failed for GMB ${routeId}/${stopId}:`, error);
-            lastError = error;
-            // loop continues to next proxy
-        }
-    }
-
-    console.error(`All proxies failed for GMB ETA ${routeId}/${stopId}`, lastError);
-    return [];
 }
 
 function formatTimeHtml(timestamp) {
@@ -247,7 +148,7 @@ async function processStopGroup(stopGroup) {
 
     const promises = stopGroup.stops.map(async stop => {
         if (stop.type === 'CTB') {
-            const etas = (await fetchCitybusStopETA(stop.id)).filter(eta => eta.eta);
+            const etas = (await fetchCtbStopETA(stop.id)).filter(eta => eta.eta);
             // Group by route and dir
             const routeGroups = {};
             etas.forEach(eta => {
@@ -333,7 +234,7 @@ async function processStopGroup(stopGroup) {
             STOP_CACHE[cacheKey] = groups;
             return groups;
         } else {
-            const etas = (await fetchStopETA(stop.id)).filter(eta => eta.eta);
+            const etas = (await fetchKmbStopETA(stop.id)).filter(eta => eta.eta);
             const routes = stop.routes || [];
             
             // Group by route and dir
@@ -425,16 +326,8 @@ async function processStopGroup(stopGroup) {
 
     const sortedGroups = validGroups.sort((a, b) => {
         // Sort ETAs within group first to ensure we compare the earliest times
-        a.etas.sort((x, y) => {
-            if (!x.eta) return 1;
-            if (!y.eta) return -1;
-            return new Date(x.eta) - new Date(y.eta);
-        });
-        b.etas.sort((x, y) => {
-            if (!x.eta) return 1;
-            if (!y.eta) return -1;
-            return new Date(x.eta) - new Date(y.eta);
-        });
+        sortEtaRecords(a.etas);
+        sortEtaRecords(b.etas);
 
         const timeA = (a.etas[0] && a.etas[0].eta) ? new Date(a.etas[0].eta) : new Date(8640000000000000);
         const timeB = (b.etas[0] && b.etas[0].eta) ? new Date(b.etas[0].eta) : new Date(8640000000000000);
@@ -473,28 +366,7 @@ async function processStopGroup(stopGroup) {
                 return;
             }
             
-            // Filter duplicates
-            const uniqueEtas = [];
-            const seenTimes = new Set();
-            // Sort ETAs by time first
-            group.etas.sort((a, b) => {
-                if (!a.eta) return 1;
-                if (!b.eta) return -1;
-                return new Date(a.eta) - new Date(b.eta)
-            });
-            
-            group.etas.forEach(item => {
-                if (!item.eta) {
-                    uniqueEtas.push(item);
-                } else {
-                    const date = new Date(item.eta);
-                    const timeStr = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                    if (!seenTimes.has(timeStr)) {
-                        seenTimes.add(timeStr);
-                        uniqueEtas.push(item);
-                    }
-                }
-            });
+            const uniqueEtas = deduplicateEtaRecords(group.etas);
 
             let destRemarkHtml = '';
 

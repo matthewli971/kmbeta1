@@ -10,20 +10,27 @@
     const location = locations[locationId] || locations.stp;
 
     function renderSharedShell() {
-        if (document.getElementById('page-title')) return;
+        if (document.getElementById('app-title')) return;
         document.getElementById('app-root').innerHTML = `
             <div class="container">
-                <header>
-                    <h1 id="page-title"></h1>
-                    <div class="header-right">
-                        <div class="header-controls">
-                            <div id="clock"></div>
-                            <button id="refresh-btn" type="button">F5</button>
+                <div id="sticky-header-group">
+                    <header id="header" class="app-header">
+                        <div id="header-left">
+                            <h1 id="app-title"></h1>
+                            <span id="app-version"></span>
                         </div>
-                    </div>
-                </header>
-                <div id="monitor-error" class="error" role="alert" hidden></div>
-                <div id="stops-container"></div>
+                        <div id="header-right">
+                            <div id="clock"></div>
+                            <div id="action-group">
+                                <button id="btn-refresh" type="button">F5</button>
+                            </div>
+                        </div>
+                    </header>
+                </div>
+                <main id="monitor-content">
+                    <div id="monitor-error" class="error" role="alert" hidden></div>
+                    <div id="stops-container"></div>
+                </main>
             </div>`;
     }
 
@@ -55,11 +62,12 @@
             await loadScript('data.js');
             await loadScript(location.config);
             await loadScript('stop-eta.js');
+            await loadScript('eta.js');
             await loadScript('script.js');
             await loadScript('route-win.js');
             await loadScript('stop-win.js');
             clearMonitorError();
-            document.getElementById('refresh-btn').addEventListener('click', render);
+            document.getElementById('btn-refresh').addEventListener('click', render);
         } catch (error) {
             console.error('Unable to start monitor:', error);
             showMonitorError('Unable to load monitor files. Please refresh the page.');
