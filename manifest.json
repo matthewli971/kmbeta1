@@ -1,0 +1,20 @@
+{
+  "name": "香港巴士到站時間監察",
+  "short_name": "巴士 ETA",
+  "description": "KMB、Citybus 及專線小巴到站時間監察",
+  "lang": "zh-Hant",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#15171e",
+  "theme_color": "#111111",
+  "icons": [
+    {
+      "src": "logo_v2.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

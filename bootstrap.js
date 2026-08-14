@@ -22,6 +22,12 @@
                         <div id="header-right">
                             <div id="clock"></div>
                             <div id="action-group">
+                                <button id="btn-settings" type="button" title="設定" aria-label="設定">
+                                    <svg viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.38 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.61 3.61 0 0 1 8.4 12 3.61 3.61 0 0 1 12 8.4a3.61 3.61 0 0 1 3.6 3.6 3.61 3.61 0 0 1-3.6 3.6z" fill="currentColor"/></svg>
+                                </button>
+                                <button id="btn-pwa-install" class="hidden" type="button" title="安裝應用程式" aria-label="安裝應用程式">
+                                    <svg viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" fill="currentColor"/></svg>
+                                </button>
                                 <button id="btn-refresh" type="button">F5</button>
                             </div>
                         </div>
@@ -31,6 +37,14 @@
                     <div id="monitor-error" class="error" role="alert" hidden></div>
                     <div id="stops-container"></div>
                 </main>
+                <div id="settings-overlay" class="hidden" aria-hidden="true"></div>
+                <aside id="settings-panel" class="hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+                    <div class="settings-header">
+                        <span class="settings-title">設定</span>
+                        <button id="settings-close" type="button" title="關閉" aria-label="關閉">&times;</button>
+                    </div>
+                    <div class="settings-body"></div>
+                </aside>
             </div>`;
     }
 
@@ -59,6 +73,8 @@
     async function start() {
         try {
             renderSharedShell();
+            await loadScript('pwa.js');
+            await loadScript('settings.js');
             await loadScript('data.js');
             await loadScript(location.config);
             await loadScript('stop-eta.js');

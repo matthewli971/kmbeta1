@@ -79,7 +79,7 @@ async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB') {
             if (item.route.length >= 4) {
                 routeTextClass += ' long-route-text';
             }
-            const routeCell = `<td class="${routeClass}" data-company="${escapeHtml(company)}" data-route="${escapeHtml(item.route)}"><button class="route-link ${routeTextClass}" type="button" data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(company)}" data-companies="${escapeHtml(company)}" data-direction="${escapeHtml(direction)}" data-service-type="${escapeHtml(serviceType)}" title="查看路線到站時間" aria-label="查看${escapeHtml(item.route)}路線到站時間">${formatRouteNumber(item.route)}</button></td>`;
+            const routeCell = `<td class="${routeClass}"><button class="route-link ${routeTextClass}" type="button" data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(company)}" data-companies="${escapeHtml(company)}" data-direction="${escapeHtml(direction)}" data-service-type="${escapeHtml(serviceType)}" title="查看路線到站時間" aria-label="查看${escapeHtml(item.route)}路線到站時間">${formatRouteNumber(item.route)}</button></td>`;
             const destinationCell = `<td class="stop-eta-destination">${escapeHtml(item.destination)}</td>`;
             const timesCell = `<td class="stop-eta-times">${item.etas.slice(0, 3).map(renderStopEtaItem).join('')}</td>`;
             return `<tr>${routeCell}${destinationCell}${timesCell}</tr>`;

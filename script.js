@@ -1,5 +1,5 @@
 // ===== App Version =====
-const APP_VERSION = "v0.44";
+const APP_VERSION = "v0.45";
 
 // ===== Runtime State =====
 const STOP_CACHE = {};
@@ -561,7 +561,7 @@ async function processStopGroup(stopGroup) {
             }
 
             row.innerHTML = `
-                <td class="${routeClass}"><button class="route-link ${routeTextClass}" type="button" data-route="${group.route}" data-company="${displayCompany}" data-companies="${group.companies ? [...group.companies].join(',') : group.company}" data-direction="${group.dir}" data-service-type="${uniqueEtas[0]?.service_type || 1}" title="查看路線到站時間">${formatRouteNumber(group.route)}</button></td>
+                <td class="${routeClass}"><button class="route-link ${routeTextClass}" type="button" data-route="${group.route}" data-company="${displayCompany}" data-companies="${group.companies ? [...group.companies].join(',') : group.company}" data-direction="${group.dir}" data-service-type="${uniqueEtas[0]?.service_type || 1}" title="查看路線到站時間" aria-label="查看${group.route}路線到站時間">${formatRouteNumber(group.route)}</button></td>
                 <td class="${destClass}">${destContent}</td>
                 <td class="time-container">${departuresHtml}</td>
             `;
