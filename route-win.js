@@ -161,7 +161,7 @@ function renderDirectionIcon() {
 
 function createRouteWindow() {
     const overlay = document.createElement('div');
-    overlay.className = 'route-window-overlay';
+    overlay.className = 'route-window-overlay route-eta-window-overlay';
     overlay.innerHTML = `
         <section class="route-window" role="dialog" aria-modal="true" aria-label="路線到站時間">
             <header class="route-window-header">
@@ -184,6 +184,7 @@ function createRouteWindow() {
         routeWindowState.direction = routeWindowState.direction === 'O' ? 'I' : 'O';
         routeWindowState.serviceType = 1;
         routeWindowState.variations = [];
+        routeWindowState.routeTitleReverse = !routeWindowState.routeTitleReverse;
         loadRouteWindow();
     });
     overlay.querySelector('.route-variation-button').addEventListener('click', () => {
@@ -196,13 +197,23 @@ function createRouteWindow() {
 }
 
 function closeRouteWindow() {
-    document.querySelector('.route-window-overlay')?.remove();
+    document.querySelector('.route-eta-window-overlay')?.remove();
     routeWindowState = null;
 }
 
 async function openRouteWindow(route, company, direction, serviceType, companies = company) {
     closeRouteWindow();
-    routeWindowState = { route, company, companies, crossOperator: false, direction: direction === 'I' ? 'I' : 'O', serviceType: Number(serviceType) || 1, variations: [] };
+    routeWindowState = {
+        route,
+        company,
+        companies,
+        crossOperator: false,
+        direction: direction === 'I' ? 'I' : 'O',
+        serviceType: Number(serviceType) || 1,
+        variations: [],
+        routeInfo: null,
+        routeTitleReverse: false
+    };
     createRouteWindow();
     await loadRouteWindow();
 }
@@ -210,8 +221,8 @@ async function openRouteWindow(route, company, direction, serviceType, companies
 function getRouteTitleClass(route, company, companies) {
     if (/^[136]\d{2}$/.test(route)) return 'route-cross-harbour';
     if (/^9\d{2}[A-Za-z]?$/.test(route)) return 'route-9xx';
-    if (company === 'CTB' && /^A/i.test(route)) return 'route-ctb-airport';
-    if (company === 'LWB' && /^A/i.test(route)) return 'route-lwb-airport';
+    if (company === 'CTB' && /^(A|NA)/i.test(route)) return 'route-ctb-airport';
+    if (company === 'LWB' && /^([AES]|NA)/i.test(route)) return 'route-lwb-airport';
     return 'route-ordinary';
 }
 
@@ -289,7 +300,7 @@ function renderRouteStopEta(eta, showOperatorBorder = false) {
 }
 
 async function loadRouteWindow(loadVariations = true) {
-    const overlay = document.querySelector('.route-window-overlay');
+    const overlay = document.querySelector('.route-eta-window-overlay');
     if (!overlay || !routeWindowState) return;
     const state = routeWindowState;
     const requestId = (state.requestId || 0) + 1;
@@ -301,7 +312,9 @@ async function loadRouteWindow(loadVariations = true) {
     const content = overlay.querySelector('.route-window-content');
     const directionButton = overlay.querySelector('.route-direction-button');
     const variationButton = overlay.querySelector('.route-variation-button');
-    title.innerHTML = `${renderCompanyBadges(state.company, state.companies)}<span class="route-window-route ${getRouteTitleClass(route, state.company, state.companies)}">${formatRouteNumber(route)}</span>`;
+    title.innerHTML = state.routeInfo
+        ? renderRouteTitle(route, state.routeInfo, state.company, state.companies, state.routeTitleReverse)
+        : `${renderCompanyBadges(state.company, state.companies)}<span class="route-window-route ${getRouteTitleClass(route, state.company, state.companies)}">${formatRouteNumber(route)}</span>`;
     directionButton.innerHTML = renderDirectionIcon();
     directionButton.className = `route-direction-button ${direction === 'I' ? 'inbound' : 'outbound'}`;
     variationButton.textContent = serviceType;
@@ -332,6 +345,8 @@ async function loadRouteWindow(loadVariations = true) {
             if (!routeWindowState || routeWindowState !== state || state.requestId !== requestId) return;
             state.variations = variations.length ? variations : [state.serviceType];
             if (!state.variations.includes(state.serviceType)) state.serviceType = state.variations[0];
+            state.routeInfo = routeInfo;
+            state.routeTitleReverse = false;
             title.innerHTML = renderRouteTitle(route, routeInfo, state.company, state.companies);
             variationButton.textContent = state.serviceType;
             variationButton.className = `route-variation-button ${state.serviceType === 1 ? 'normal' : 'variation'}`;
@@ -398,6 +413,8 @@ async function loadRouteWindow(loadVariations = true) {
             if (!routeWindowState || routeWindowState !== state || state.requestId !== requestId) return;
             state.variations = [1];
             variationButton.hidden = true;
+            state.routeInfo = routeInfo;
+            state.routeTitleReverse = direction === 'I';
             title.innerHTML = renderRouteTitle(route, routeInfo, state.company, state.companies, direction === 'I');
             // For CTB assume direction toggle may be disabled if only single bound returned
             try {

@@ -1,5 +1,5 @@
 // ===== App Version =====
-const APP_VERSION = "v0.45";
+const APP_VERSION = "v0.46";
 
 // ===== Runtime State =====
 const STOP_CACHE = {};
@@ -121,10 +121,10 @@ function getRouteNumberClass(route, company) {
     if (/^\d{3}[A-Za-z]?$/.test(routeValue) && routeValue.startsWith('9')) {
         routeClass += ' route-9xx';
     } else if (company === 'CTB') {
-        routeClass += /^A/i.test(routeValue) ? ' ctb-airport' : ' ctb';
+        routeClass += /^(A|NA)/i.test(routeValue) ? ' ctb-airport' : ' ctb';
     } else if (company === 'GMB') {
         routeClass += ' gmb';
-    } else if (company === 'KMB' && /^[AES]/i.test(routeValue)) {
+    } else if (company === 'KMB' && /^([AES]|NA)/i.test(routeValue)) {
         routeClass += ' text-orange';
     }
 
@@ -287,10 +287,23 @@ async function processStopGroup(stopGroup) {
     // Merge same routes from different stops/companies (KMB+CTB co-operated)
     const mergedGroups = {};
     flatResults.forEach(group => {
-        // Use company-agnostic key for KMB/CTB to merge co-operated routes
-        // Use route only (no dir/dest) since at a given stop group, same route from KMB/CTB is the same service
-        const coKey = (group.company === 'KMB' || group.company === 'CTB') ? 'BUS' : group.company;
-        const key = `${coKey}-${group.route}-${group.dir}`;
+        const isBusOperator = group.company === 'KMB' || group.company === 'CTB';
+        const coKey = isBusOperator ? 'BUS' : group.company;
+        const defaultKey = `${coKey}-${group.route}-${group.dir}`;
+        // KMB and CTB can report opposite direction codes for the same co-operated journey.
+        // Match that case by destination only when adding the other operator, preserving
+        // separate same-operator journeys that happen to share a destination.
+        const matchingOperatorKey = isBusOperator
+            ? Object.keys(mergedGroups).find(existingKey => {
+                const existingGroup = mergedGroups[existingKey];
+                const hasMatchingDestination = Object.values(existingGroup.dests || {})
+                    .some(dest => String(dest || '').trim() === String(group.dest || '').trim());
+                return existingGroup.route === group.route
+                    && !existingGroup.companies.has(group.company)
+                    && hasMatchingDestination;
+            })
+            : null;
+        const key = matchingOperatorKey || defaultKey;
         if (!mergedGroups[key]) {
             mergedGroups[key] = {
                 ...group,
@@ -491,20 +504,19 @@ async function processStopGroup(stopGroup) {
                 if (label) {
                     groupStopCodeHtml += `<span class="stop-label">${escapeHtml(label)}</span>`;
                 }
-                const codes = [];
-                if (group.stopCodes.KMB) codes.push(group.stopCodes.KMB.code);
-                if (group.stopCodes.CTB) codes.push(group.stopCodes.CTB.code);
                 let dirClass = effectiveDir === 'O' ? 'outbound' : 'inbound';
                 let dirCircleHtml = `<span class="dir-circle ${dirClass}"></span>`;
-                const kmbStopId = group.stopIds && group.stopIds.KMB;
-                const ctbStopId = group.stopIds && group.stopIds.CTB;
-                const infoStopId = kmbStopId || ctbStopId;
-                const infoCompany = kmbStopId ? 'KMB' : 'CTB';
                 const stopName = stopGroup.name || '';
-                const infoButtonHtml = infoStopId
-                    ? `<button class="route-stop-info-button" type="button" data-company="${infoCompany}" data-stop-id="${escapeHtml(infoStopId)}" data-stop-name="${escapeHtml(stopName)}" data-stop-code="${escapeHtml(codes.join(' / '))}" title="查看本站到站時間" aria-label="查看${escapeHtml(stopName)}到站時間">i</button>`
-                    : '';
-                stopCodeHtml += `<span class="stop-code">${dirCircleHtml} ${codes.join(' / ')}${infoButtonHtml}</span>`;
+                const stopCodeItems = ['KMB', 'CTB'].flatMap(company => {
+                    const stopCode = group.stopCodes[company]?.code;
+                    if (!stopCode) return [];
+                    const stopId = group.stopIds && group.stopIds[company];
+                    const infoButtonHtml = stopId
+                        ? `<button class="route-stop-info-button" type="button" data-company="${company}" data-stop-id="${escapeHtml(stopId)}" data-stop-name="${escapeHtml(stopName)}" data-stop-code="${escapeHtml(stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(stopName)}到站時間">i</button>`
+                        : '';
+                    return `${escapeHtml(stopCode)}${infoButtonHtml}`;
+                });
+                stopCodeHtml += `<span class="stop-code">${dirCircleHtml} ${stopCodeItems.join(' / ')}</span>`;
             } else if (group.company !== 'GMB') {
                 if (group.stopLabel) {
                     groupStopCodeHtml += `<span class="stop-label">${escapeHtml(group.stopLabel)}</span>`;

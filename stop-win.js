@@ -75,16 +75,17 @@ async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB') {
             const routeClass = getRouteNumberClass(item.route, company);
             const direction = item.etas[0]?.dir || 'O';
             const serviceType = item.etas[0]?.service_type || 1;
-            let routeTextClass = 'route-text';
+            let routeTextClass = 'route-text stop-eta-route-code';
             if (item.route.length >= 4) {
                 routeTextClass += ' long-route-text';
             }
-            const routeCell = `<td class="${routeClass}"><button class="route-link ${routeTextClass}" type="button" data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(company)}" data-companies="${escapeHtml(company)}" data-direction="${escapeHtml(direction)}" data-service-type="${escapeHtml(serviceType)}" title="查看路線到站時間" aria-label="查看${escapeHtml(item.route)}路線到站時間">${formatRouteNumber(item.route)}</button></td>`;
+            const routeCell = `<td class="${routeClass} stop-eta-route"><button class="route-link ${routeTextClass}" type="button" data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(company)}" data-companies="${escapeHtml(company)}" data-direction="${escapeHtml(direction)}" data-service-type="${escapeHtml(serviceType)}" title="查看路線到站時間" aria-label="查看${escapeHtml(item.route)}路線到站時間">${formatRouteNumber(item.route)}</button></td>`;
             const destinationCell = `<td class="stop-eta-destination">${escapeHtml(item.destination)}</td>`;
             const timesCell = `<td class="stop-eta-times">${item.etas.slice(0, 3).map(renderStopEtaItem).join('')}</td>`;
             return `<tr>${routeCell}${destinationCell}${timesCell}</tr>`;
         }).join('');
-        overlay.querySelector('.route-window-content').innerHTML = `<table class="stop-eta-table"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">暫無班次</td></tr>'}</tbody></table>`;
+        const etaColumnCount = Math.min(3, Math.max(1, ...[...routes.values()].map(item => item.etas.length)));
+        overlay.querySelector('.route-window-content').innerHTML = `<table class="stop-eta-table stop-eta-columns-${etaColumnCount}"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">暫無班次</td></tr>'}</tbody></table>`;
     } catch (error) {
         console.error(`Unable to load ${company} stop ETA window:`, error);
         if (stopEtaWindowState === state) overlay.querySelector('.route-window-content').innerHTML = '<div class="route-window-message">未能取得到站時間，請稍後再試。</div>';
