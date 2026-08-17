@@ -11,7 +11,11 @@ const APP_SHELL = [
     './script.js',
     './route-win.js',
     './stop-win.js',
+    './stp.html',
+    './mjh.html',
     './manifest.json',
+    './manifest-stp.json',
+    './manifest-mjh.json',
     './logo_v2.svg'
 ];
 
