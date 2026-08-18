@@ -290,7 +290,7 @@ function renderRouteStopEta(eta, showOperatorBorder = false) {
         : showOperatorBorder && eta._co === 'CTB'
             ? ' eta-border-ctb'
             : '';
-    return `<div class="eta-item${isArriving ? ' arriving' : ''}${borderClass}">
+    return `<div class="eta-item route-window-eta-item${isArriving ? ' arriving' : ''}${borderClass}">
         <div class="eta-large ${minClass}"><span class="time-text-b${isArriving ? ' bold' : ''}" data-timestamp="${escapeHtml(eta.eta)}" data-remark="${escapeHtml(eta.rmk_tc || '')}">${formatDuration(eta.eta, eta.rmk_tc)}</span></div>
         <div class="eta-small">
             <span class="eta-remark-tag ${tagClass}">${formatTimeHtmlMinMode(eta.eta)}</span>
@@ -451,6 +451,6 @@ async function loadRouteWindow(loadVariations = true) {
             if (routeWindowState === state && state.requestId === requestId) content.innerHTML = '<div class="route-window-message">未能取得路線資料，請稍後再試。</div>';
         }
     } else {
-        content.innerHTML = '<div class="route-window-message">此功能目前只支援九巴及城巴路線。</div>';
+        content.innerHTML = '';
     }
 }

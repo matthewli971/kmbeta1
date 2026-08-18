@@ -27,34 +27,35 @@
     
 
     /* Font sizes */
-    --font-title: 29px;
-    --font-clock: 36px;
-    --font-refresh: 22px;
+    --font-title: 6vw;
+    --font-clock: 7.6vw;
+    --font-refresh: 4.8vw;
     --font-body: inherit;
-    --font-button: 1.2em;
+    --font-button: 1em;
     --font-table: 1.2em;
     --font-toggle-label: 1.2em;
-    --font-stop-title: 1.5rem;
-    --font-route: 3rem;
-    --font-destination: 1.6rem;
-    --font-stop-code: 1rem;
-    --font-stop-label: 1.3rem;
-    --font-destination-remark: 0.9rem;
-    --font-eta-time: 1.6rem;
-    --font-win-eta-time: 0.75rem;
+    --font-stop-title: 1.3rem;
+    --font-route: 2rem;
+    --font-destination: 1.1rem;
+    --font-stop-code: 0.75rem;
+    --font-stop-label: 0.9rem;
+    --font-destination-remark: 0.7rem;
+    --font-eta-time: 1.1em;
+    --font-win-eta-time: 0.65rem;
     --font-arriving: 0.9em;
-    --font-eta-exact: 1.1em;
+    --font-eta-exact: 1em;
     --font-eta-min: 0.6em;
     --font-eta-remark: 0.6em;
-    --font-eta-large: 1.1em;
-    --font-eta-small: 0.6em;
+    --font-eta-large: 1em;
+    --font-eta-small: 0.5em;
     --font-eta-small-seconds: 0.8em;
     --font-time-exact: 1.2em;
-    --font-eta-tag-small: 0.6rem;
+    --font-eta-tag-small: 0.5rem;
     --font-time-seconds: 0.5em;
     --font-route-route: 2.2rem;
-    --font-route-stop-name: 1.4rem;
-    --page-margin: 20px;
+    --font-route-stop-name: 1.2rem;
+    
+    --page-margin: 5px;
 }
 
 body {
@@ -82,6 +83,7 @@ body {
 #header {
     display: flex;
     flex-direction: column;
+    flex-wrap: wrap;
     align-items: flex-start;
     gap: 8px;
     padding: 8px var(--page-margin);
@@ -103,6 +105,22 @@ body {
     width: 100%;
     justify-content: space-between;
     gap: 8px;
+}
+
+#day-countdown {
+    display: flex;
+    color: var(--color-text);
+    background-color: var(--color-surface);
+    border: 2px solid var(--color-text);
+    border-radius: 5px;
+    box-sizing: border-box;
+    align-items: center;
+    height: 35px;
+    padding: 4px 6px;
+    font-size: var(--font-refresh);
+    font-weight: bold;
+    line-height: 1;
+    white-space: nowrap;
 }
 
 #action-group {
@@ -265,79 +283,48 @@ body {
     gap: 18px;
 }
 
-.settings-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-}
-
-.settings-item-label {
-    font-size: 0.95em;
-}
-
-.settings-theme-toggle {
-    display: inline-flex;
-    align-items: stretch;
-    gap: 2px;
-    padding: 2px;
-    background: #1b1b1b;
-    border: 1px solid #555;
-    border-radius: 5px;
-}
-
-.theme-choice {
-    border: none;
-    border-radius: 3px;
-    padding: 4px 8px;
-    background: transparent;
-    color: #bbb;
-    cursor: pointer;
-    font: inherit;
-}
-
-.theme-choice.active {
-    background: #4caf50;
-    color: #fff;
-}
-
-body.light-mode {
-    background-color: #f5f5f5;
-    color: #222;
-}
-
-body.light-mode #sticky-header-group {
-    background-color: #252525;
-}
-
-body.light-mode #settings-panel {
-    background: #f0f0f0;
-    color: #222;
-}
-
-body.light-mode .settings-header {
-    border-bottom-color: #ccc;
-}
-
-body.light-mode #settings-close {
-    color: #222;
-}
-
-body.light-mode .settings-theme-toggle {
-    background: #ddd;
-    border-color: #bbb;
-}
-
 #monitor-content {
     padding: var(--page-margin);
 }
 
 .stop-section {
+    position: relative;
     margin-bottom: 30px;
     border: 1px solid #333;
     border-radius: 8px;
     padding: 10px;
     background-color: var(--color-surface);
+}
+
+.stop-refresh-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--font-stop-title);
+    height: var(--font-stop-title);
+    color: var(--color-accent);
+    pointer-events: none;
+}
+
+.stop-loader-spinner {
+    width: 60%;
+    height: 60%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: stop-refresh-spin 0.8s linear infinite;
+}
+
+.stop-refresh-tick {
+    width: 100%;
+    height: 100%;
+}
+
+@keyframes stop-refresh-spin {
+    to { transform: rotate(360deg); }
 }
 
 .stop-title {
@@ -544,12 +531,6 @@ body.light-mode .settings-theme-toggle {
 }
 
 .route-window {
-    /* Keep route ETA cards at the 700px monitor scale on large displays. */
-    --font-eta-time: 1.6rem;
-    --font-arriving: 0.9em;
-    --font-eta-large: 1.1em;
-    --font-eta-small: 0.6em;
-    --font-eta-tag-small: 0.6rem;
     display: flex;
     flex-direction: column;
     position: relative;
@@ -1011,157 +992,372 @@ input:checked + .slider:before {
     gap: 20px;
 }
 
-@media (max-width: 460px) {
-    :root {
-        --font-title: 6vw;
-        --font-clock: 7.6vw;
-        --font-refresh: 4.8vw;
-        --font-button: 1em;
-    }
-
-    #btn-refresh {
-        top: 60px;
-    }
-    .eta-item-last { display: none; }
-    .stop-eta-window .stop-eta-times .eta-item:nth-child(n + 3) {
-        display: none;
-    }
-    .stop-eta-window td.stop-eta-destination {
-        width: auto;
-    }
-    .route-window.stop-eta-window .stop-eta-times {
-        width: 140px !important;
-        min-width: 140px !important;
-        text-align: right;
-    }
-
-    .route-window-title { width: 100%; }
-    .route-window-actions { margin-top: 6px; }
-    .route-window-close { top: 8px; right: 8px; }
-    .stop-eta-window .route-window-actions { top: 8px; right: 48px; }
+/* Narrow screens are the default layout. */
+#btn-refresh {
+    padding: 6px 15px;
+}
+.eta-item-last { display: none; }
+.stop-eta-window .stop-eta-times .eta-item:nth-child(n + 3) { display: none; }
+.stop-eta-window td.stop-eta-destination { width: auto; }
+.route-window.stop-eta-window .stop-eta-times {
+    width: 140px !important;
+    min-width: 140px !important;
+    text-align: left;
+}
+.route-window-title {
+    width: 100%;
+    gap: 6px;
+    font-size: 1rem;
 }
 
+.route-window-actions {
+    margin-top: 6px;
+    gap: 6px;
+}
 
-@media (max-width: 600px) {
+.route-window-close {
+    top: 8px;
+    right: 8px;
+}
+
+.stop-eta-window .route-window-actions {
+    top: 8px;
+    right: 48px;
+}
+
+.eta-table .eta-item {
+    width: 70px;
+}
+
+.dest-text {
+    display: block;
+}
+
+.dest-text .stop-label {
+    position: absolute;
+    top: 0;
+    right: 10px;
+    margin-right: 0;
+}
+
+.route-window-overlay {
+    align-items: flex-start;
+    padding: 40px 2px;
+}
+
+.route-window {
+    width: 100%;
+    max-height: 80vh;
+    border-radius: 10px;
+}
+
+.route-window-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: 8px 52px 8px 8px;
+}
+
+.route-window-route {
+    font-size: 1.6rem;
+}
+
+.route-window-journey {
+    margin-left: 6px;
+    font-size: 1.05rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.route-window-refresh {
+    min-width: 42px;
+}
+
+.route-window-content {
+    padding: 4px;
+}
+
+.route-window-content .stop-eta-table td {
+    padding: 1px 4px;
+    vertical-align: middle;
+}
+
+.route-stop-table td {
+    padding: 4px 2px;
+}
+
+.route-stop-times {
+    width: 210px;
+    min-width: 200px;
+}
+
+.route-stop-times .eta-item {
+    width: 70px;
+    padding: 2px;
+}
+
+.route-stop-no-eta {
+    width: 65px;
+}
+
+.dest-sub-info {
+    margin-top: -6px;
+}
+
+.route-window .stop-eta-route {
+    width: 15%;
+    min-width: 90px !important;
+    font-size: var(--font-route);
+}
+
+.route-window .stop-eta-route .route-suffix {
+    font-size: calc(var(--font-route) * 0.75);
+}
+
+.route-window .stop-eta-destination {
+    font-size: var(--font-destination);
+}
+
+.route-window .stop-eta-times {
+    width: 210px !important;
+    min-width: 210px !important;
+}
+
+.route-window .stop-eta-table.stop-eta-columns-1 .stop-eta-times {
+    width: 70px !important;
+    min-width: 70px !important;
+}
+
+.route-window .stop-eta-table.stop-eta-columns-2 .stop-eta-times {
+    width: 140px !important;
+    min-width: 140px !important;
+}
+
+.route-window .stop-eta-times .eta-item {
+    width: 70px !important;
+    min-width: 70px;
+    padding: 2px;
+}
+
+.rmk {
+    font-weight: normal;
+}
+
+.stop-section {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    padding: 5px;
+}
+
+.eta-table th,
+.eta-table td {
+    padding: 1px;
+}
+
+td.route-no,
+th.route-no {
+    padding-right: 8px;
+}
+
+.stop-title {
+    padding-left: 5px;
+}
+/*
+.eta-item {
+    width: 80px;
+}*/
+
+.eta-large,
+.eta-small {
+    white-space: nowrap;
+}
+
+@media (min-width: 460px) {
     :root {
-        --font-route: 2rem;
-        --font-eta-time: 1.1em;
-        --font-win-eta-time: 0.65rem;
-        --font-arriving: 0.9em;
-        --font-eta-tag-small: 0.5rem;
-        --font-route-stop-name: 1.2rem;
-    }
-    #btn-refresh {
-        padding: 6px 15px;
-        font-size: var(--font-refresh);
-    }
-    .eta-table .eta-item { width: 70px; }
-
-    .dest-text {
-        display: block;
-    }
-    .dest-text .stop-label {
-        position: absolute;
-        top: 0;
-        right: 10px;
-        margin-right: 0;
+        --font-title: 28px;
+        --font-clock: 36px;
+        --font-refresh: 22px;
+        --font-button: 1.2em;
     }
 
-    .route-window-overlay { 
-        align-items: flex-start;
-        padding: 40px 2px;
-    }
-    .route-window {
-        width: 100%;
-        max-height: 80vh;
-        border-radius: 10px;
-    }
-    .route-window-header {
-        align-items: flex-start;
-        flex-wrap: wrap;
-        padding: 8px 52px 8px 8px;
-    }
-    .route-window-title { width: 100%; }
-    .route-window-actions { margin-top: 6px;  gap: 6px; }
-    .route-window-close { top: 8px; right: 8px; }
-    .route-window-title { gap: 6px; font-size: 1rem; }
-    .route-window-route { font-size: 1.6rem; }
-    .route-window-journey { margin-left: 6px; font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; }
-    .route-window-refresh { min-width: 42px; }
-    .route-window-content { padding: 4px; }
-    .route-window-content .stop-eta-table td { padding: 1px 4px; vertical-align: middle; }
-    .route-stop-table td { padding: 4px 2px; }
-    .route-stop-times { width: 210px; min-width: 200px; }
-    .route-stop-times .eta-item { width: 70px; padding: 2px; }
-    .route-stop-no-eta { width: 65px; }
-
-    .dest-sub-info {
-        margin-top: -6px; 
-    }
-
-    /* stop-eta specific adjustments on small screens */
-    .route-window .stop-eta-route { width: 15%; min-width: 90px !important; font-size: var(--font-route); }
-    .route-window .stop-eta-route .route-suffix { font-size: calc(var(--font-route) * 0.75); }
-    .route-window .stop-eta-destination { font-size: var(--font-destination); }
-    .route-window .stop-eta-times {
+    .eta-item-last { display: flex; }
+    .stop-eta-window .stop-eta-times .eta-item:nth-child(n + 3) { display: inline-flex; }
+    .route-window.stop-eta-window .stop-eta-times {
         width: 210px !important;
         min-width: 210px !important;
     }
-    .route-window .stop-eta-table.stop-eta-columns-1 .stop-eta-times {
-        width: 70px !important;
-        min-width: 70px !important;
+    .stop-eta-window .route-window-actions { top: 16px; right: 50px; }
+}
+
+@media (min-width: 600px) {
+    :root {
+        --font-route: 2.5rem;
+        --font-destination: 1.3rem;
+        --font-stop-code: 0.9rem;
+        --font-eta-time: 1.6rem;
+        --font-win-eta-time: 0.75rem;
+        --font-route-stop-name: 1.4rem;
     }
-    .route-window .stop-eta-table.stop-eta-columns-2 .stop-eta-times {
-        width: 140px !important;
+
+    #btn-refresh {
+        padding: 4px 12px;
+    }
+
+    /*.eta-table */.eta-item {
+        width: 80px;
+    }
+
+    .dest-text {
+        display: inline;
+    }
+
+    .dest-text .stop-label {
+        position: static;
+        top: auto;
+        right: auto;
+        margin-right: 10px;
+    }
+
+    .route-window-overlay {
+        padding: 20px;
+    }
+
+    .route-window {
+        width: min(700px, 100%);
+        max-height: min(86vh, 900px);
+        border-radius: 18px;
+    }
+
+    .route-window-header {
+        align-items: center;
+        flex-wrap: nowrap;
+        padding: 14px 58px 14px 18px;
+    }
+
+    .route-window-title {
+        width: auto;
+        gap: 4px;
+        font-size: 1.2rem;
+    }
+
+    .route-window-actions {
+        margin-top: 0;
+        gap: 4px;
+    }
+
+    .route-window-close {
+        top: 12px;
+        right: 12px;
+    }
+
+    .stop-eta-window .route-window-actions {
+        top: 16px;
+        right: 50px;
+    }
+
+    .route-window-route {
+        font-size: var(--font-route-route);
+    }
+
+    .route-window-journey {
+        margin-left: 12px;
+        font-size: 1.4rem;
+        overflow: visible;
+        text-overflow: clip;
+    }
+
+    .route-window-refresh {
+        min-width: 54px;
+    }
+
+    .route-window-content {
+        padding: 10px;
+    }
+
+    .route-window-content .stop-eta-table td {
+        padding: 4px;
+    }
+
+    .route-stop-table td {
+        padding: 6px 4px;
+    }
+
+    .route-stop-times {
+        width: 252px;
+        min-width: 252px;
+    }
+
+    .route-stop-times .eta-item {
+        width: 84px;
+    }
+
+    .route-stop-no-eta {
+        width: 84px;
+    }
+
+    .dest-sub-info {
+        margin-top: -5px;
+    }
+
+    .route-window .stop-eta-route {
+        min-width: 0 !important;
+        font-size: var(--font-route-route);
+    }
+
+    .route-window .stop-eta-times {
+        width: 270px !important;
         min-width: 140px !important;
     }
+
+    .route-window.stop-eta-window .stop-eta-times {
+        width: 270px !important;
+        min-width: 140px !important;
+    }
+
+    .route-window .stop-eta-table.stop-eta-columns-1 .stop-eta-times {
+        width: 80px !important;
+        min-width: 80px !important;
+    }
+
+    .route-window .stop-eta-table.stop-eta-columns-2 .stop-eta-times {
+        width: 160px !important;
+        min-width: 160px !important;
+    }
+
     .route-window .stop-eta-times .eta-item {
-        width: 70px !important;
-        min-width: 70px;
-        padding: 2px;
+        width: 80px !important;
+        min-width: 56px;
     }
 }
 
-@media (max-width: 700px) {
+@media (min-width: 700px) {
     :root {
-        --font-stop-label: 0.9rem;
-        --font-stop-title: 1.3rem;
-        --font-route: 2.5rem;
-        --font-destination: 1.2rem;
-        --font-destination-remark: 0.7rem;
-        --font-stop-code: 0.8rem;
-        --font-eta-tag-small: 0.5rem;
-        --font-eta-large: 1em;
-        --font-eta-small: 0.5em;
-        --font-eta-exact: 1em;
-        --page-margin: 5px;
+        --font-stop-label: 1.3rem;
+        --font-stop-title: 1.5rem;
+        --font-route: 3rem;
+        --font-destination: 1.6rem;
+        --font-destination-remark: 0.9rem;
+        --font-stop-code: 1rem;
+        --font-eta-tag-small: 0.6rem;
+        --font-eta-large: 1.1em;
+        --font-eta-small: 0.6em;
+        --font-eta-exact: 1.1em;
+        --page-margin: 20px;
     }
 
-    .rmk {
-        font-weight: normal;
+    .stop-section { margin-top: 0; margin-bottom: 30px; padding: 10px; }
+    .eta-table th, .eta-table td { padding: 5px 10px; }
+    td.route-no, th.route-no { padding-right: 10px; }
+    .stop-title { padding-left: 0; }
+    .eta-item, .eta-table .eta-item { width: 84px; padding: 3px; }
+
+    /* Keep route and stop pop-up ETA cards at their monitor-scale typography. */
+    .route-window-eta-item {
+        --font-eta-time: 1.6rem;
+        --font-arriving: 0.9em;
+        --font-eta-large: 1.1em;
+        --font-eta-small: 0.6em;
+        --font-eta-tag-small: 0.6rem;
     }
-
-    .stop-section {
-        margin-top: 10px;
-        margin-bottom: 10px;
-        padding: 5px;
-    }
-
-    .eta-table th, .eta-table td {
-        padding-top: 1px;
-        padding-bottom: 1px;
-        padding-left: 1px;
-        padding-right: 1px;
-    }
-
-    td.route-no, th.route-no { padding-right: 8px; }
-
-    .stop-title { padding-left: 5px; }
-    
-    .eta-item { width: 80px; }
-
-    /* Mode B Mobile Styles */
-    .eta-large, .eta-small { white-space: nowrap; }
 }
 
 @media (min-width: 800px) {
@@ -1198,6 +1394,7 @@ input:checked + .slider:before {
 
 @media (min-width: 1240px) {
     :root {
+        --font-title: 2.2rem;
         --font-route: 3.3rem;
         --font-eta-tag-small: 0.6rem;
         --font-eta-time: 1.4em;
@@ -1230,8 +1427,8 @@ input:checked + .slider:before {
         --font-title: 2.5rem;
         --font-stop-title: 2rem;
         --font-route: 5rem;
-        --font-destination: 2.2rem;
-        --font-stop-code: 1.4rem;
+        --font-destination: 2rem;
+        --font-stop-code: 1.2rem;
         --font-destination-remark: 1.2rem;
         --font-stop-label: 1.5rem;
         --font-eta-time: 1.2em;
@@ -1244,7 +1441,7 @@ input:checked + .slider:before {
         --font-eta-tag-small: 0.8rem;
         --font-time-seconds: 0.6em;
         --font-time-exact: 1.2em;
-        --page-margin: 30px;
+        --page-margin: 10px;
     }
 
     body { max-width: 100%; }
@@ -1299,8 +1496,8 @@ input:checked + .slider:before {
     }
 
     /* ETA Items */
-    .eta-item {
-        width: 120px;
+    .eta-table .eta-item {
+        width: 110px;
         padding: 2px;
     }
     
@@ -1317,6 +1514,21 @@ input:checked + .slider:before {
     }
 
     .time-text { font-size: var(--font-time-exact); }
+}
+
+
+/* TV Mode / Large Screen Optimization */
+@media (min-width: 1800px) {
+    :root {
+        --font-destination: 2.2rem;
+        --font-stop-code: 1.4rem;
+    }
+
+    /* ETA Items */
+    .eta-table .eta-item {
+        width: 120px;
+        padding: 2px;
+    }
 }
 
 /* Testing Borders */

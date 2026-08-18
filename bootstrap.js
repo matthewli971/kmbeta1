@@ -20,6 +20,7 @@
                             <span id="app-version"></span>
                         </div>
                         <div id="header-right">
+                            <div id="day-countdown" aria-live="polite"></div>
                             <div id="clock"></div>
                             <div id="action-group">
                                 <button id="btn-settings" type="button" title="設定" aria-label="設定">

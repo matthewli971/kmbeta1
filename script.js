@@ -1,5 +1,7 @@
 // ===== App Version =====
-const APP_VERSION = "v0.46";
+const APP_VERSION = "v0.47";
+const HONG_KONG_TIME_ZONE = 'Asia/Hong_Kong';
+const COUNTDOWN_TARGET_DATE = '2026-09-16';
 
 // ===== Runtime State =====
 const STOP_CACHE = {};
@@ -25,22 +27,61 @@ function escapeHtml(value) {
 
 function updateClock() {
     const now = new Date();
-    const dateStr = now.toLocaleDateString('en-GB'); // DD/MM/YYYY
-    const timeStr = now.toLocaleTimeString('en-GB', { hour12: true }).toUpperCase();
+    const timeStr = now.toLocaleTimeString('en-GB', {
+        timeZone: HONG_KONG_TIME_ZONE,
+        hour12: true
+    }).toUpperCase();
     document.getElementById('clock').innerHTML = `${timeStr}`;
 }
 
-function getSortedStops() {
-    const now = new Date();
-    // Get current minutes since midnight
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+function updateDayCountdown() {
+    const countdown = document.getElementById('day-countdown');
+    if (!countdown) return;
+
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: HONG_KONG_TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(new Date());
+    const values = Object.fromEntries(
+        parts
+            .filter(part => part.type !== 'literal')
+            .map(part => [part.type, part.value])
+    );
+    const todayUtc = Date.UTC(
+        Number(values.year),
+        Number(values.month) - 1,
+        Number(values.day)
+    );
+    const targetUtc = Date.parse(`${COUNTDOWN_TARGET_DATE}T00:00:00Z`);
+    const daysUntil = Math.ceil((targetUtc - todayUtc) / (24 * 60 * 60 * 1000));
+
+    if (daysUntil <= 0) {
+        return;
+    }
+
+    countdown.innerHTML = `${daysUntil}`;
+}
+
+function getActivePriorityConfig() {
+    const timeParts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: HONG_KONG_TIME_ZONE,
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23'
+    }).formatToParts(new Date());
+    const timeValues = Object.fromEntries(
+        timeParts
+            .filter(part => part.type !== 'literal')
+            .map(part => [part.type, Number(part.value)])
+    );
+    const currentMinutes = timeValues.hour * 60 + timeValues.minute;
 
     const parseTime = (timeStr) => {
         const [h, m] = timeStr.split(':').map(Number);
         return h * 60 + m;
     };
-
-    let activeConfig = null;
 
     for (const config of PRIORITY_CONFIG) {
         const start = parseTime(config.start);
@@ -48,11 +89,14 @@ function getSortedStops() {
         
         // Check if current time is within range [start, end)
         if (currentMinutes >= start && currentMinutes < end) {
-            activeConfig = config;
-            break;
+            return config;
         }
     }
 
+    return null;
+}
+
+function getSortedStops(activeConfig = getActivePriorityConfig()) {
     if (!activeConfig) {
         return STOPS;
     }
@@ -131,12 +175,55 @@ function getRouteNumberClass(route, company) {
     return routeClass;
 }
 
+function stopRefreshIndicatorHtml() {
+    return `<div class="stop-refresh-indicator" aria-label="Refreshing stop data">
+        <span class="stop-loader-spinner" aria-hidden="true"></span>
+        <svg class="stop-refresh-tick hidden" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12.5 9.5 17 19 7.5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+    </div>`;
+}
+
+function setStopRefreshState(section, state) {
+    const indicator = section?.querySelector('.stop-refresh-indicator');
+    if (!indicator) return;
+
+    const spinner = indicator.querySelector('.stop-loader-spinner');
+    const tick = indicator.querySelector('.stop-refresh-tick');
+    if (section._refreshHideTimer) {
+        clearTimeout(section._refreshHideTimer);
+        section._refreshHideTimer = null;
+    }
+
+    if (state === 'loading') {
+        spinner.classList.remove('hidden');
+        tick.classList.add('hidden');
+        return;
+    }
+
+    if (state === 'complete') {
+        spinner.classList.add('hidden');
+        tick.classList.remove('hidden');
+        section._refreshHideTimer = setTimeout(() => {
+            spinner.classList.add('hidden');
+            tick.classList.add('hidden');
+            section._refreshHideTimer = null;
+        }, 2000);
+        return;
+    }
+
+    if (state === 'hidden') {
+        spinner.classList.add('hidden');
+        tick.classList.add('hidden');
+    }
+}
+
 async function processStopGroup(stopGroup) {
     const isGMBGroup = stopGroup.stops.every(s => s.type === 'GMB');
     const section = document.createElement('div');
     section.className = 'stop-section';
     const titleClass = isGMBGroup ? 'stop-title gmb-title' : 'stop-title';
-    section.innerHTML = `<div class="${titleClass}">${stopGroup.name}</div>`;
+    section.innerHTML = `${stopRefreshIndicatorHtml()}<div class="${titleClass}">${stopGroup.name}</div>`;
 
     // We create a new table structure. 
     // Note: The render function will copy this innerHTML to the DOM element later.
@@ -572,8 +659,13 @@ async function processStopGroup(stopGroup) {
                 `;
             }
 
+            const routeEtaSupported = displayCompany === 'KMB' || displayCompany === 'CTB';
+            const routeLinkState = routeEtaSupported ? '' : ' disabled';
+            const routeLinkTitle = routeEtaSupported ? ' title="查看路線到站時間"' : '';
+            const routeLinkHtml = `<button class="route-link ${routeTextClass}" type="button"${routeLinkState}${routeLinkTitle} data-route="${escapeHtml(group.route)}" data-company="${displayCompany}" data-companies="${group.companies ? [...group.companies].join(',') : group.company}" data-direction="${group.dir}" data-service-type="${uniqueEtas[0]?.service_type || 1}" aria-label="查看${escapeHtml(group.route)}路線到站時間">${formatRouteNumber(group.route)}</button>`;
+
             row.innerHTML = `
-                <td class="${routeClass}"><button class="route-link ${routeTextClass}" type="button" data-route="${group.route}" data-company="${displayCompany}" data-companies="${group.companies ? [...group.companies].join(',') : group.company}" data-direction="${group.dir}" data-service-type="${uniqueEtas[0]?.service_type || 1}" title="查看路線到站時間" aria-label="查看${group.route}路線到站時間">${formatRouteNumber(group.route)}</button></td>
+                <td class="${routeClass}">${routeLinkHtml}</td>
                 <td class="${destClass}">${destContent}</td>
                 <td class="time-container">${departuresHtml}</td>
             `;
@@ -593,9 +685,10 @@ async function processStopGroup(stopGroup) {
 
 async function render() {
     const container = document.getElementById('stops-container');
-    
+
     // Get stops sorted by current time configuration
-    let sortedStops = getSortedStops();
+    const activePriorityConfig = getActivePriorityConfig();
+    const sortedStops = getSortedStops(activePriorityConfig);
 
     // Identify active sections
     const activeIds = new Set(sortedStops.map(s => `section-${s.id}`));
@@ -624,15 +717,18 @@ async function render() {
             el = document.createElement('div');
             el.id = `section-${stopGroup.id}`;
             el.className = 'stop-section';
-            el.innerHTML = `<div class="${titleClass}">${stopGroup.name}</div><div class="loading-text" style="padding:10px; color:#888;">Loading...</div>`;
+            el.innerHTML = `${stopRefreshIndicatorHtml()}<div class="${titleClass}">${stopGroup.name}</div><div class="loading-text" style="padding:10px; color:#888;">Loading...</div>`;
         }
         return el;
     }
 
-    const pinnedIds = new Set(typeof GRID_LAYOUT !== 'undefined' ? GRID_LAYOUT : []);
+    // Time-based priority takes precedence over fixed grid positions.
+    const pinnedIds = new Set(
+        !activePriorityConfig && typeof GRID_LAYOUT !== 'undefined' ? GRID_LAYOUT : []
+    );
 
     // Place pinned items into designated columns (even index → left, odd → right)
-    if (typeof GRID_LAYOUT !== 'undefined') {
+    if (!activePriorityConfig && typeof GRID_LAYOUT !== 'undefined') {
         GRID_LAYOUT.forEach((id, idx) => {
             const sg = sortedStops.find(s => s.id === id);
             if (!sg) return;
@@ -668,6 +764,9 @@ async function render() {
     // 3. Data Fetch & Update Phase (Asynchronous)
     // Fetch and update each section independent of others
     sortedStops.forEach(stopGroup => {
+        const section = document.getElementById(`section-${stopGroup.id}`);
+        setStopRefreshState(section, 'loading');
+
         processStopGroup(stopGroup).then(newContent => {
             const sectionId = `section-${stopGroup.id}`;
             const currentEl = document.getElementById(sectionId);
@@ -683,10 +782,12 @@ async function render() {
                     if (newContent.className !== currentEl.className) {
                         currentEl.className = newContent.className;
                     }
+                    setStopRefreshState(currentEl, 'complete');
                 }
             }
         }).catch(err => {
             console.error(`Error rendering group ${stopGroup.id}:`, err);
+            setStopRefreshState(document.getElementById(`section-${stopGroup.id}`), 'hidden');
             // Optionally indicator error in UI, but usually best to leave stale data vs error message
         });
     });
@@ -697,6 +798,7 @@ render();
 // Update every 30 seconds
 setInterval(render, 30000); 
 setInterval(updateClock, 1000); // Update clock every second
+setInterval(updateDayCountdown, 1000);
 setInterval(() => {
     // Update countdowns every second without full re-render
     const timeTexts = document.querySelectorAll('.time-text, .time-text-b');
@@ -710,10 +812,11 @@ setInterval(() => {
     });
 }, 1000);
 updateClock();
+updateDayCountdown();
 
 document.addEventListener('click', event => {
     const routeLink = event.target.closest('.route-link');
-    if (!routeLink) return;
+    if (!routeLink || routeLink.disabled) return;
     openRouteWindow(
         routeLink.dataset.route,
         routeLink.dataset.company,

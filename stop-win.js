@@ -16,7 +16,7 @@ function renderStopEtaItem(eta) {
     const minClass = isArriving ? 'text-green' : isScheduled ? 'text-grey' : hasEta && diffMins < 5 ? 'text-light-green' : hasEta ? 'text-yellow' : 'text-grey';
     const tagClass = isArriving ? 'text-black bold' : !hasEta || isScheduled || diffMins >= 30 ? 'text-grey' : 'text-white bold';
     const remark = isScheduled ? '[預定]' : eta.rmk_tc === '最後班次' ? '[尾班]' : '';
-    return `<div class="eta-item${isArriving ? ' arriving' : ''}">
+    return `<div class="eta-item route-window-eta-item${isArriving ? ' arriving' : ''}">
         <div class="eta-large ${minClass}"><span class="time-text-b${isArriving ? ' bold' : ''}" data-timestamp="${escapeHtml(eta.eta)}" data-remark="${escapeHtml(eta.rmk_tc || '')}">${formatDuration(eta.eta, eta.rmk_tc)}</span></div>
         <div class="eta-small"><span class="eta-remark-tag ${tagClass}">${formatTimeHtmlMinMode(eta.eta)}</span> <span class="eta-remark-tag-small ${tagClass}">${remark}</span></div>
     </div>`;
@@ -79,7 +79,10 @@ async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB') {
             if (item.route.length >= 4) {
                 routeTextClass += ' long-route-text';
             }
-            const routeCell = `<td class="${routeClass} stop-eta-route"><button class="route-link ${routeTextClass}" type="button" data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(company)}" data-companies="${escapeHtml(company)}" data-direction="${escapeHtml(direction)}" data-service-type="${escapeHtml(serviceType)}" title="查看路線到站時間" aria-label="查看${escapeHtml(item.route)}路線到站時間">${formatRouteNumber(item.route)}</button></td>`;
+            const routeEtaSupported = company === 'KMB' || company === 'CTB';
+            const routeButtonState = routeEtaSupported ? '' : ' disabled';
+            const routeButtonTitle = routeEtaSupported ? ' title="查看路線到站時間"' : '';
+            const routeCell = `<td class="${routeClass} stop-eta-route"><button class="route-link ${routeTextClass}" type="button"${routeButtonState}${routeButtonTitle} data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(company)}" data-companies="${escapeHtml(company)}" data-direction="${escapeHtml(direction)}" data-service-type="${escapeHtml(serviceType)}" aria-label="查看${escapeHtml(item.route)}路線到站時間">${formatRouteNumber(item.route)}</button></td>`;
             const destinationCell = `<td class="stop-eta-destination">${escapeHtml(item.destination)}</td>`;
             const timesCell = `<td class="stop-eta-times">${item.etas.slice(0, 3).map(renderStopEtaItem).join('')}</td>`;
             return `<tr>${routeCell}${destinationCell}${timesCell}</tr>`;
