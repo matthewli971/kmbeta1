@@ -70,8 +70,38 @@ async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB') {
             if (!routes.has(key)) routes.set(key, { route: eta.route, destination: eta.dest_tc || eta.dest_en || eta.dest || '', etas: [] });
             routes.get(key).etas.push(eta);
         });
-        const rows = [...routes.values()].map(item => {
-            item.etas.sort((a, b) => new Date(a.eta) - new Date(b.eta));
+        const routeItems = [...routes.values()];
+        routeItems.forEach(item => {
+            sortEtaRecords(item.etas);
+        });
+
+        // KMB variations can return duplicate arrivals. Consolidate them when
+        // every available display ETA (up to three) is identical, retaining
+        // the API's first record as the destination and route-link target.
+        const displayItems = isCtb ? routeItems : (() => {
+            const groupedItems = new Map();
+            routeItems.forEach(item => {
+                const displayEtas = item.etas.slice(0, 3);
+                const etaCount = displayEtas.length;
+                const signature = displayEtas.map(eta => eta.eta).join('|');
+                const direction = displayEtas[0]?.dir || 'O';
+                const key = etaCount ? `${item.route}|${direction}|${etaCount}|${signature}` : null;
+                const existing = key && groupedItems.get(key);
+
+                if (existing && Number(existing.etas[0]?.service_type) !== Number(displayEtas[0]?.service_type)) {
+                    existing.variationServiceTypes.push(displayEtas[0]?.service_type || 1);
+                    return;
+                }
+
+                item.variationServiceTypes = [displayEtas[0]?.service_type || 1];
+                if (key) groupedItems.set(key, item);
+                else groupedItems.set(`unique-${groupedItems.size}`, item);
+            });
+            return [...groupedItems.values()];
+        })();
+        const sortedDisplayItems = sortEtaGroupsByFirstArrival(displayItems);
+
+        const rows = sortedDisplayItems.map(item => {
             const routeClass = getRouteNumberClass(item.route, company);
             const direction = item.etas[0]?.dir || 'O';
             const serviceType = item.etas[0]?.service_type || 1;
@@ -83,11 +113,14 @@ async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB') {
             const routeButtonState = routeEtaSupported ? '' : ' disabled';
             const routeButtonTitle = routeEtaSupported ? ' title="查看路線到站時間"' : '';
             const routeCell = `<td class="${routeClass} stop-eta-route"><button class="route-link ${routeTextClass}" type="button"${routeButtonState}${routeButtonTitle} data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(company)}" data-companies="${escapeHtml(company)}" data-direction="${escapeHtml(direction)}" data-service-type="${escapeHtml(serviceType)}" aria-label="查看${escapeHtml(item.route)}路線到站時間">${formatRouteNumber(item.route)}</button></td>`;
-            const destinationCell = `<td class="stop-eta-destination">${escapeHtml(item.destination)}</td>`;
+            const variationCircles = item.variationServiceTypes?.length > 1
+                ? item.variationServiceTypes.map(variation => `<button class="route-link stop-eta-variation ${Number(variation) === 1 ? 'normal' : 'variation'}" type="button" title="查看${escapeHtml(item.route)}路線變體 ${escapeHtml(variation)}" data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(company)}" data-companies="${escapeHtml(company)}" data-direction="${escapeHtml(direction)}" data-service-type="${escapeHtml(variation)}" aria-label="查看${escapeHtml(item.route)}路線變體 ${escapeHtml(variation)}">${escapeHtml(variation)}</button>`).join('')
+                : '';
+            const destinationCell = `<td class="stop-eta-destination"><span class="stop-eta-destination-content"><span class="stop-eta-destination-name">${escapeHtml(item.destination)}</span>${variationCircles}</span></td>`;
             const timesCell = `<td class="stop-eta-times">${item.etas.slice(0, 3).map(renderStopEtaItem).join('')}</td>`;
             return `<tr>${routeCell}${destinationCell}${timesCell}</tr>`;
         }).join('');
-        const etaColumnCount = Math.min(3, Math.max(1, ...[...routes.values()].map(item => item.etas.length)));
+        const etaColumnCount = Math.min(3, Math.max(1, ...sortedDisplayItems.map(item => item.etas.length)));
         overlay.querySelector('.route-window-content').innerHTML = `<table class="stop-eta-table stop-eta-columns-${etaColumnCount}"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">暫無班次</td></tr>'}</tbody></table>`;
     } catch (error) {
         console.error(`Unable to load ${company} stop ETA window:`, error);

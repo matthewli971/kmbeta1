@@ -33,6 +33,14 @@
                             </div>
                         </div>
                     </header>
+                    <div id="station-selector">
+                        <div id="search-wrapper">
+                            <input type="search" id="station-search" placeholder="搜尋巴士站" autocomplete="off" aria-label="搜尋巴士站" aria-controls="station-dropdown" aria-expanded="false">
+                            <div id="station-dropdown" class="hidden" role="listbox" aria-label="巴士站搜尋結果">
+                                <div id="station-list"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <main id="monitor-content">
                     <div id="monitor-error" class="error" role="alert" hidden></div>

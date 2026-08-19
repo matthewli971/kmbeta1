@@ -91,6 +91,17 @@ function sortEtaRecords(etas) {
     });
 }
 
+function sortEtaGroupsByFirstArrival(groups) {
+    return groups.sort((a, b) => {
+        sortEtaRecords(a.etas);
+        sortEtaRecords(b.etas);
+
+        const timeA = a.etas[0]?.eta ? new Date(a.etas[0].eta) : new Date(8640000000000000);
+        const timeB = b.etas[0]?.eta ? new Date(b.etas[0].eta) : new Date(8640000000000000);
+        return timeA - timeB;
+    });
+}
+
 function deduplicateEtaRecords(etas) {
     const uniqueEtas = [];
     const seenTimes = new Set();

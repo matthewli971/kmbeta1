@@ -15,12 +15,8 @@ A web application to display real-time bus arrival times for specific Hong Kong 
 -   **Dark Mode UI**: High contrast design for easy readability.
 -   **Route ETA Window**: Click route number in the stop monitor to view route-stop ETAs.
 -   **Stop ETA Window**: View all route ETAs at that stop through "i" button in stops showing in stop monitor and route ETA window.
-
-## Supported Stops
-
--   **HK Science Park Phase 3**: PA113, PA115, PA116, 003840 (Citybus)
--   **Fo Yin Road (Kowloon Bound)**: PA214, PA215, PA216, PA217, 003738 (Citybus)
--   **Tate's Cairn Tunnel**: ST790 (A3), ST791 (A2) - Displays all routes.
+-   **Date Countdown**: Display remaining days before the designated date
+-   **Bus Stop Refresh Indicators**: Shows loading spinner to indicate the loading state by bus stops
 
 ## Usage
 

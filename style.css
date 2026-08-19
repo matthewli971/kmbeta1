@@ -1,6 +1,8 @@
 :root {
     /* Colors */
     --color-background: #000;
+    --color-search-bar: #333;
+    --color-search-bar-border: #111;
     --color-accent: #4caf50;
     --color-accent-hover: #388e3c;
     --color-title: #f0ad4e;
@@ -212,6 +214,50 @@ body {
     font-size: var(--font-clock);
     font-weight: bold;
     font-variant-numeric: tabular-nums;
+}
+
+/* Bus-stop search shell follows the MTR monitor's dark selector styling. */
+#station-selector {
+    position: relative;
+    padding: 0 var(--page-margin) 12px;
+    background-color: var(--color-surface);
+}
+
+#search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+#station-search {
+    width: 100%;
+    padding: 8px 12px;
+    font: inherit;
+    font-size: clamp(16px, 4.3vw, 19px);
+    border: 2px solid var(--color-search-bar-border);
+    border-radius: 8px;
+    background-color: var(--color-search-bar);
+    color: var(--color-text);
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+#station-search:focus {
+    border-color: var(--color-dark-grey);
+}
+
+#station-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    max-height: 50vh;
+    overflow-y: auto;
+    border: 1px solid var(--color-search-bar-border);
+    border-radius: 0 0 8px 8px;
+    background-color: #1e2235;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    z-index: 200;
 }
 
 /* MTR-style settings drawer; the bus monitor remains dark by default. */
@@ -503,6 +549,11 @@ body {
     color: var(--color-background);
 }
 
+/* Stop-window ETA cards use the same type scale as monitor table cells. */
+.route-window-eta-item {
+    font-size: var(--font-table);
+}
+
 .eta-min {
     font-size: var(--font-eta-min);
     font-weight: bold;
@@ -764,7 +815,27 @@ body {
 .stop-eta-route { width: 15%; font-size: var(--font-route-route); font-weight: bold; }
 .stop-eta-route .route-suffix { font-size: calc(var(--font-route-route) * 0.75); }
 .stop-eta-times { width: 240px; max-width: 240px; text-align: left; white-space: nowrap; overflow: hidden; }
-.stop-eta-destination { overflow: hidden; color: var(--color-text); font-size: var(--font-route-stop-name); font-weight: bold; text-overflow: ellipsis; white-space: nowrap; }
+.stop-eta-destination { overflow: hidden; color: var(--color-text); font-size: var(--font-route-stop-name); font-weight: bold; }
+.stop-eta-destination-content { display: flex; align-items: center; min-width: 0; gap: 6px; }
+.stop-eta-destination-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stop-eta-variation {
+    display: inline-grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 1.35em;
+    height: 1.35em;
+    border: 1px solid #fff;
+    border-radius: 50%;
+    box-sizing: border-box;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: bold;
+    font-size: 0.75em;
+    line-height: 1;
+}
+.stop-eta-variation.normal { background: #fff; color: #000; }
+.stop-eta-variation.variation { background: #000; color: #fff; }
 .stop-eta-times .eta-item {
     display: inline-flex;
     flex: 0 0 72px;
@@ -1174,7 +1245,7 @@ th.route-no {
 @media (min-width: 460px) {
     :root {
         --font-title: 28px;
-        --font-clock: 36px;
+        --font-clock: 32px;
         --font-refresh: 22px;
         --font-button: 1.2em;
     }
@@ -1393,8 +1464,39 @@ th.route-no {
 }
 
 @media (min-width: 1240px) {
+    #sticky-header-group {
+        display: grid;
+        grid-template-columns: auto minmax(280px, 400px) auto;
+        align-items: center;
+        gap: 8px;
+        padding: 8px var(--page-margin);
+    }
+
+    #header {
+        display: contents;
+    }
+
+    #header-left {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    #station-selector {
+        grid-column: 2;
+        grid-row: 1;
+        width: 100%;
+        padding: 0;
+    }
+
+    #header-right {
+        grid-column: 3;
+        grid-row: 1;
+        width: auto;
+        justify-self: end;
+    }
+
     :root {
-        --font-title: 2.2rem;
+        --font-title: 2rem;
         --font-route: 3.3rem;
         --font-eta-tag-small: 0.6rem;
         --font-eta-time: 1.4em;
@@ -1424,7 +1526,6 @@ th.route-no {
 @media (min-width: 1600px) {
     :root {
         --font-body: 20px;
-        --font-title: 2.5rem;
         --font-stop-title: 2rem;
         --font-route: 5rem;
         --font-destination: 2rem;

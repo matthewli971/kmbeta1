@@ -1,5 +1,5 @@
 // ===== App Version =====
-const APP_VERSION = "v0.47";
+const APP_VERSION = "v0.48";
 const HONG_KONG_TIME_ZONE = 'Asia/Hong_Kong';
 const COUNTDOWN_TARGET_DATE = '2026-09-16';
 
@@ -58,10 +58,39 @@ function updateDayCountdown() {
     const daysUntil = Math.ceil((targetUtc - todayUtc) / (24 * 60 * 60 * 1000));
 
     if (daysUntil <= 0) {
+        countdown.textContent = '';
         return;
     }
 
     countdown.innerHTML = `${daysUntil}`;
+}
+
+function initializeStationSearch() {
+    const selector = document.getElementById('station-selector');
+    const search = document.getElementById('station-search');
+    const dropdown = document.getElementById('station-dropdown');
+    if (!selector || !search || !dropdown) return;
+
+    const openDropdown = () => {
+        dropdown.classList.remove('hidden');
+        search.setAttribute('aria-expanded', 'true');
+    };
+    const closeDropdown = () => {
+        dropdown.classList.add('hidden');
+        search.setAttribute('aria-expanded', 'false');
+    };
+
+    search.addEventListener('focus', openDropdown);
+    search.addEventListener('click', openDropdown);
+    search.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+            closeDropdown();
+            search.blur();
+        }
+    });
+    document.addEventListener('click', event => {
+        if (!selector.contains(event.target)) closeDropdown();
+    });
 }
 
 function getActivePriorityConfig() {
@@ -424,18 +453,10 @@ async function processStopGroup(stopGroup) {
         return true;
     });
 
-    const sortedGroups = validGroups.sort((a, b) => {
-        // Sort ETAs within group first to ensure we compare the earliest times
-        sortEtaRecords(a.etas);
-        sortEtaRecords(b.etas);
-
-        const timeA = (a.etas[0] && a.etas[0].eta) ? new Date(a.etas[0].eta) : new Date(8640000000000000);
-        const timeB = (b.etas[0] && b.etas[0].eta) ? new Date(b.etas[0].eta) : new Date(8640000000000000);
-        return timeA - timeB;
-    });
+    const sortedGroups = sortEtaGroupsByFirstArrival(validGroups);
 
     if (sortedGroups.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="3" class="loading">No scheduled buses</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="3" class="loading">沒有班次</td></tr>`;
     } else {
         // Split into pinned and unpinned groups
         const pinList = stopGroup.pin && stopGroup.pin.length > 0 ? stopGroup.pin : null;
@@ -717,7 +738,7 @@ async function render() {
             el = document.createElement('div');
             el.id = `section-${stopGroup.id}`;
             el.className = 'stop-section';
-            el.innerHTML = `${stopRefreshIndicatorHtml()}<div class="${titleClass}">${stopGroup.name}</div><div class="loading-text" style="padding:10px; color:#888;">Loading...</div>`;
+            el.innerHTML = `${stopRefreshIndicatorHtml()}<div class="${titleClass}">${stopGroup.name}</div><div class="loading-text" style="padding:10px; color:#888;">載入中...</div>`;
         }
         return el;
     }
@@ -813,6 +834,7 @@ setInterval(() => {
 }, 1000);
 updateClock();
 updateDayCountdown();
+initializeStationSearch();
 
 document.addEventListener('click', event => {
     const routeLink = event.target.closest('.route-link');
