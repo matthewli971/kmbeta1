@@ -2,7 +2,7 @@
     /* Colors */
     --color-background: #000;
     --color-search-bar: #333;
-    --color-search-bar-border: #111;
+    --color-search-bar-border: #222;
     --color-accent: #4caf50;
     --color-accent-hover: #388e3c;
     --color-title: #f0ad4e;
@@ -36,7 +36,7 @@
     --font-button: 1em;
     --font-table: 1.2em;
     --font-toggle-label: 1.2em;
-    --font-stop-title: 1.3rem;
+    --font-stop-title: 1.2rem;
     --font-route: 2rem;
     --font-destination: 1.1rem;
     --font-stop-code: 0.75rem;
@@ -258,6 +258,64 @@ body {
     background-color: #1e2235;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
     z-index: 200;
+}
+
+.route-search-result,
+.route-search-status {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 42px;
+    padding: 8px 12px;
+    border: 0;
+    border-bottom: 1px solid #2e3044;
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    text-align: left;
+}
+
+.route-search-result {
+    gap: 6px;
+    cursor: pointer;
+    font-family: 'Arial', sans-serif;
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.route-search-result:hover,
+.route-search-result:focus-visible {
+    background-color: #2d3155;
+    outline: none;
+}
+
+.route-search-result .route-company-badge {
+    flex: 0 0 10px;
+}
+
+.route-search-result .route-window-route {
+    flex: 0 0 auto;
+    font-family: inherit;
+    font-weight: inherit;
+}
+
+.route-search-result .route-window-journey {
+    min-width: 0;
+    overflow: hidden;
+    font-family: inherit;
+    font-weight: inherit;
+    text-overflow: ellipsis;
+}
+
+.route-search-result .route-loop-badge {
+    margin-left: 2px;
+    padding: 1px 5px;
+    font-size: 0.7em;
+}
+
+.route-search-status {
+    color: var(--color-grey);
+    cursor: default;
 }
 
 /* MTR-style settings drawer; the bus monitor remains dark by default. */
@@ -667,7 +725,7 @@ body {
     border-radius: 4px;
     background: #5cb85c;
     color: #fff;
-    font-size: 1rem;
+    font-size: 1.5rem;
 }
 
 .route-window-refresh:hover { background: #4cae4c; }
@@ -1463,10 +1521,10 @@ th.route-no {
     }
 }
 
-@media (min-width: 1240px) {
+@media (min-width: 1300px) {
     #sticky-header-group {
         display: grid;
-        grid-template-columns: auto minmax(280px, 400px) auto;
+        grid-template-columns: auto minmax(450px, 1fr) auto auto auto;
         align-items: center;
         gap: 8px;
         padding: 8px var(--page-margin);
@@ -1489,9 +1547,22 @@ th.route-no {
     }
 
     #header-right {
+        display: contents;
+    }
+
+    #day-countdown {
         grid-column: 3;
         grid-row: 1;
-        width: auto;
+    }
+
+    #clock {
+        grid-column: 4;
+        grid-row: 1;
+    }
+
+    #action-group {
+        grid-column: 5;
+        grid-row: 1;
         justify-self: end;
     }
 

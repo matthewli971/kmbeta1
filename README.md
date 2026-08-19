@@ -17,6 +17,8 @@ A web application to display real-time bus arrival times for specific Hong Kong 
 -   **Stop ETA Window**: View all route ETAs at that stop through "i" button in stops showing in stop monitor and route ETA window.
 -   **Date Countdown**: Display remaining days before the designated date
 -   **Bus Stop Refresh Indicators**: Shows loading spinner to indicate the loading state by bus stops
+-   **Route Search**: Searches KMB and Citybus routes by route-number prefix and opens the outbound, service-type 1 route view.
+-   **Daily Route Cache**: Stores the route list locally and refreshes it after 5:15 AM Hong Kong time.
 
 ## Usage
 

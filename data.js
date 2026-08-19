@@ -8,10 +8,10 @@ window.API_ENDPOINTS = Object.freeze({
         routeEta: 'https://data.etabus.gov.hk/v1/transport/kmb/route-eta'
     }),
     ctb: Object.freeze({
-        stopEta: 'https://rt.data.gov.hk/v1/transport/batch/stop-eta/CTB',
-        route: 'https://rt.data.gov.hk/v2/transport/citybus/route/CTB',
-        routeStop: 'https://rt.data.gov.hk/v2/transport/citybus/route-stop/CTB',
         stop: 'https://rt.data.gov.hk/v2/transport/citybus/stop',
+        stopEta: 'https://rt.data.gov.hk/v1/transport/batch/stop-eta/CTB',
+        route: 'https://rt.data.gov.hk/v1/transport/citybus-nwfb/route/ctb',
+        routeStop: 'https://rt.data.gov.hk/v2/transport/citybus/route-stop/CTB',
         eta: 'https://rt.data.gov.hk/v2/transport/citybus/eta/CTB'
     }),
     gmb: Object.freeze({

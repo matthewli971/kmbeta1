@@ -219,11 +219,11 @@ async function openRouteWindow(route, company, direction, serviceType, companies
 }
 
 function getRouteTitleClass(route, company, companies) {
-    if (/^[136]\d{2}$/.test(route)) return 'route-cross-harbour';
-    if (/^9\d{2}[A-Za-z]?$/.test(route)) return 'route-9xx';
-    if (company === 'CTB' && /^(A|NA)/i.test(route)) return 'route-ctb-airport';
-    if (company === 'LWB' && /^([AES]|NA)/i.test(route)) return 'route-lwb-airport';
-    return 'route-ordinary';
+    if (/^[136]\d{2}$/.test(route)) return ' route-cross-harbour';
+    if (/^9\d{2}[A-Za-z]?$/.test(route)) return ' route-9xx';
+    if (company === 'CTB' && /^(A|NA)/i.test(route)) return ' route-ctb-airport';
+    if (company === 'LWB' && /^([AES]|NA)/i.test(route)) return ' route-lwb-airport';
+    return '';
 }
 
 function renderCompanyBadges(company, companies) {
@@ -235,7 +235,7 @@ function renderCompanyBadges(company, companies) {
 
 function renderRouteTitle(route, routeInfo, company, companies, reverseJourney = false) {
     const routeClass = getRouteTitleClass(route, company, companies);
-    const routeLabel = `${renderCompanyBadges(company, companies)}<span class="route-window-route ${routeClass}">${formatRouteNumber(route)}</span>`;
+    const routeLabel = `${renderCompanyBadges(company, companies)}<span class="route-window-route${routeClass}">${formatRouteNumber(route)}</span>`;
     if (!routeInfo?.orig_tc || !routeInfo?.dest_tc) return routeLabel;
     const origin = (reverseJourney ? routeInfo.dest_tc : routeInfo.orig_tc).trim();
     let destination = (reverseJourney ? routeInfo.orig_tc : routeInfo.dest_tc).trim();
@@ -314,7 +314,7 @@ async function loadRouteWindow(loadVariations = true) {
     const variationButton = overlay.querySelector('.route-variation-button');
     title.innerHTML = state.routeInfo
         ? renderRouteTitle(route, state.routeInfo, state.company, state.companies, state.routeTitleReverse)
-        : `${renderCompanyBadges(state.company, state.companies)}<span class="route-window-route ${getRouteTitleClass(route, state.company, state.companies)}">${formatRouteNumber(route)}</span>`;
+        : `${renderCompanyBadges(state.company, state.companies)}<span class="route-window-route${getRouteTitleClass(route, state.company, state.companies)}">${formatRouteNumber(route)}</span>`;
     directionButton.innerHTML = renderDirectionIcon();
     directionButton.className = `route-direction-button ${direction === 'I' ? 'inbound' : 'outbound'}`;
     variationButton.textContent = serviceType;

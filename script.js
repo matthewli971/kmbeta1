@@ -1,5 +1,5 @@
 // ===== App Version =====
-const APP_VERSION = "v0.48";
+const APP_VERSION = "v0.49";
 const HONG_KONG_TIME_ZONE = 'Asia/Hong_Kong';
 const COUNTDOWN_TARGET_DATE = '2026-09-16';
 
@@ -63,34 +63,6 @@ function updateDayCountdown() {
     }
 
     countdown.innerHTML = `${daysUntil}`;
-}
-
-function initializeStationSearch() {
-    const selector = document.getElementById('station-selector');
-    const search = document.getElementById('station-search');
-    const dropdown = document.getElementById('station-dropdown');
-    if (!selector || !search || !dropdown) return;
-
-    const openDropdown = () => {
-        dropdown.classList.remove('hidden');
-        search.setAttribute('aria-expanded', 'true');
-    };
-    const closeDropdown = () => {
-        dropdown.classList.add('hidden');
-        search.setAttribute('aria-expanded', 'false');
-    };
-
-    search.addEventListener('focus', openDropdown);
-    search.addEventListener('click', openDropdown);
-    search.addEventListener('keydown', event => {
-        if (event.key === 'Escape') {
-            closeDropdown();
-            search.blur();
-        }
-    });
-    document.addEventListener('click', event => {
-        if (!selector.contains(event.target)) closeDropdown();
-    });
 }
 
 function getActivePriorityConfig() {

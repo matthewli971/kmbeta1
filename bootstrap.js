@@ -35,8 +35,8 @@
                     </header>
                     <div id="station-selector">
                         <div id="search-wrapper">
-                            <input type="search" id="station-search" placeholder="搜尋巴士站" autocomplete="off" aria-label="搜尋巴士站" aria-controls="station-dropdown" aria-expanded="false">
-                            <div id="station-dropdown" class="hidden" role="listbox" aria-label="巴士站搜尋結果">
+                            <input type="search" id="station-search" placeholder="搜尋巴士路線" autocomplete="off" aria-label="搜尋巴士路線" aria-controls="station-dropdown" aria-expanded="false">
+                            <div id="station-dropdown" class="hidden" role="listbox" aria-label="巴士路線搜尋結果">
                                 <div id="station-list"></div>
                             </div>
                         </div>
@@ -88,6 +88,7 @@
             await loadScript(location.config);
             await loadScript('stop-eta.js');
             await loadScript('eta.js');
+            await loadScript('route-search.js');
             await loadScript('script.js');
             await loadScript('route-win.js');
             await loadScript('stop-win.js');
