@@ -22,12 +22,17 @@ function renderStopEtaItem(eta) {
     </div>`;
 }
 
-async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB') {
-    closeStopEtaWindow();
-    const state = { stopId, stopName, stopCode, company };
+async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB', silentRefresh = false) {
+    if (!silentRefresh) {
+        closeStopEtaWindow();
+    }
+    const state = silentRefresh ? stopEtaWindowState : { stopId, stopName, stopCode, company };
+    if (!state) return;
     stopEtaWindowState = state;
-    const overlay = document.createElement('div');
-    overlay.className = 'route-window-overlay stop-eta-window-overlay';
+    let overlay = document.querySelector('.stop-eta-window-overlay');
+    if (!silentRefresh) {
+        overlay = document.createElement('div');
+        overlay.className = 'route-window-overlay stop-eta-window-overlay';
     // Extract interchange badge like "XXX轉車站 - Name" and display badge inline
     let displayName = stopName || '';
     let interchangeBadgeHtml = '';
@@ -49,12 +54,13 @@ async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB') {
             <button class="route-window-close" type="button" title="關閉" aria-label="關閉">×</button>
             <div class="route-window-content"><div class="route-window-loading">載入中...</div></div>
         </section>`;
-    overlay.addEventListener('click', event => { if (event.target === overlay) closeStopEtaWindow(); });
-    overlay.querySelector('.route-window-close').addEventListener('click', closeStopEtaWindow);
-    overlay.querySelector('.route-window-refresh').addEventListener('click', () => {
-        openStopEtaWindow(state.stopId, state.stopName, state.stopCode, state.company);
-    });
-    document.body.appendChild(overlay);
+        overlay.addEventListener('click', event => { if (event.target === overlay) closeStopEtaWindow(); });
+        overlay.querySelector('.route-window-close').addEventListener('click', closeStopEtaWindow);
+        overlay.querySelector('.route-window-refresh').addEventListener('click', () => {
+            refreshStopEtaWindow();
+        });
+        document.body.appendChild(overlay);
+    }
 
     try {
         const isCtb = company === 'CTB';
@@ -112,7 +118,7 @@ async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB') {
             const routeEtaSupported = company === 'KMB' || company === 'CTB';
             const routeButtonState = routeEtaSupported ? '' : ' disabled';
             const routeButtonTitle = routeEtaSupported ? ' title="查看路線到站時間"' : '';
-            const routeCell = `<td class="${routeClass} stop-eta-route"><button class="route-link ${routeTextClass}" type="button"${routeButtonState}${routeButtonTitle} data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(company)}" data-companies="${escapeHtml(company)}" data-direction="${escapeHtml(direction)}" data-service-type="${escapeHtml(serviceType)}" aria-label="查看${escapeHtml(item.route)}路線到站時間">${formatRouteNumber(item.route)}</button></td>`;
+            const routeCell = `<td class="route-no${routeClass} stop-eta-route"><button class="route-link ${routeTextClass}" type="button"${routeButtonState}${routeButtonTitle} data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(company)}" data-companies="${escapeHtml(company)}" data-direction="${escapeHtml(direction)}" data-service-type="${escapeHtml(serviceType)}" aria-label="查看${escapeHtml(item.route)}路線到站時間">${formatRouteNumber(item.route)}</button></td>`;
             const variationCircles = item.variationServiceTypes?.length > 1
                 ? item.variationServiceTypes.map(variation => `<button class="route-link stop-eta-variation ${Number(variation) === 1 ? 'normal' : 'variation'}" type="button" title="查看${escapeHtml(item.route)}路線變體 ${escapeHtml(variation)}" data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(company)}" data-companies="${escapeHtml(company)}" data-direction="${escapeHtml(direction)}" data-service-type="${escapeHtml(variation)}" aria-label="查看${escapeHtml(item.route)}路線變體 ${escapeHtml(variation)}">${escapeHtml(variation)}</button>`).join('')
                 : '';

@@ -16,7 +16,7 @@
     --color-kmb: lightcoral;
     --color-ctb: #ffeb3b;
     --color-ctb-airport: #bf1e2e;
-    --color-route-9xx: #009e6c;
+    --color-route-cross-wht: #009e6c;
     --color-route-cross-harbour: #f00;
     --color-gmb: #90ee90;
     --color-green: #006000;
@@ -181,13 +181,17 @@ body {
 }
 
 #btn-refresh {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background-color: var(--color-accent);
     color: var(--color-text);
     border: none;
-    padding: 4px 12px;
+    padding: 6px 15px;
     font-size: var(--font-refresh);
     font-weight: bold;
     height: 35px;
+    min-width: 50px;
     border-radius: 5px;
     cursor: pointer;
     transition: background-color 0.2s;
@@ -246,6 +250,16 @@ body {
     border-color: var(--color-dark-grey);
 }
 
+#station-search::-webkit-search-cancel-button {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background-color: var(--color-grey);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23000' d='M2.3 2.3c-.4-.4-.4-1 0-1.4s1-.4 1.4 0L8 5.6l4.3-4.3c.4-.4 1-.4 1.4 0s.4 1 0 1.4L9.4 7l4.3 4.3c.4.4.4 1 0 1.4s-1 .4-1.4 0L8 8.4l-4.3 4.3c-.4.4-1 .4-1.4 0s-.4-1 0-1.4L6.6 7 2.3 2.3z'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23000' d='M2.3 2.3c-.4-.4-.4-1 0-1.4s1-.4 1.4 0L8 5.6l4.3-4.3c.4-.4 1-.4 1.4 0s.4 1 0 1.4L9.4 7l4.3 4.3c.4.4.4 1 0 1.4s-1 .4-1.4 0L8 8.4l-4.3 4.3c-.4.4-1 .4-1.4 0s-.4-1 0-1.4L6.6 7 2.3 2.3z'/%3E%3C/svg%3E") center / contain no-repeat;}
+
 #station-dropdown {
     position: absolute;
     top: 100%;
@@ -297,6 +311,10 @@ body {
     flex: 0 0 auto;
     font-family: inherit;
     font-weight: inherit;
+}
+
+.route-search-result .route-window-route .route-suffix {
+    font-size: 0.75em;
 }
 
 .route-search-result .route-window-journey {
@@ -387,6 +405,61 @@ body {
     gap: 18px;
 }
 
+.settings-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #555;
+}
+
+.settings-item-copy {
+    min-width: 0;
+}
+
+.settings-item-title {
+    color: var(--color-text-dark);
+    font-size: 1rem;
+}
+
+.settings-item-subtext {
+    display: block;
+    margin-top: 4px;
+    color: var(--color-grey);
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.settings-item-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    min-width: 50px;
+    padding: 5px 12px;
+    border: 1px solid var(--color-grey);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--color-text-dark);
+    cursor: pointer;
+}
+
+.settings-item-button:hover:not(:disabled) {
+    background: #444;
+}
+
+.settings-item-button:disabled {
+    cursor: wait;
+    opacity: 0.6;
+}
+
+.settings-item-button .stop-loader-spinner {
+    display: block;
+    width: 14px;
+    height: 14px;
+}
+
 #monitor-content {
     padding: var(--page-margin);
 }
@@ -420,6 +493,18 @@ body {
     border-top-color: #fff;
     border-radius: 50%;
     animation: stop-refresh-spin 0.8s linear infinite;
+}
+
+.route-window-refresh .stop-loader-spinner {
+    display: block;
+    width: 14px;
+    height: 14px;
+}
+
+#btn-refresh .stop-loader-spinner {
+    display: block;
+    width: 18px;
+    height: 18px;
 }
 
 .stop-refresh-tick {
@@ -470,12 +555,16 @@ body {
     color: var(--color-ctb);
 }
 
-.route-no.ctb-airport {
+.route-no.route-ctb-airport {
     color: var(--color-ctb-airport);
 }
 
-.route-no.route-9xx {
-    color: var(--color-route-9xx);
+.route-no.route-cross-wht {
+    color: var(--color-route-cross-wht);
+}
+
+.route-no.route-lwb-airport {
+    color: var(--color-orange);
 }
 
 .route-no.gmb {
@@ -681,17 +770,17 @@ body {
 }
 .route-company-badge-kmb { background: #f00; }
 .route-company-badge-ctb { background: #ffd400; }
-.route-window-route.route-9xx,
+.route-window-route.route-cross-wht,
 .route-window-route.route-cross-harbour {
     display: inline-block;
     border-radius: 4px;
     padding: 2px 6px;
     color: #fff;
 }
-.route-window-route.route-9xx { background: var(--color-route-9xx); }
+.route-window-route.route-cross-wht { background: var(--color-route-cross-wht); }
 .route-window-route.route-cross-harbour { background: var(--color-route-cross-harbour); }
 .route-window-route.route-ctb-airport { color: var(--color-ctb-airport); }
-.route-window-route.route-lwb-airport { color: var(--color-orange); }
+.route-lwb-airport { color: var(--color-orange); }
 .route-window-journey { margin-left: 12px; color: var(--color-text); font-size: 1.4rem; white-space: nowrap; }
 
 /* Circular route badge in the route window journey */
@@ -729,6 +818,12 @@ body {
 }
 
 .route-window-refresh:hover { background: #4cae4c; }
+
+#btn-refresh:disabled,
+.route-window-refresh:disabled {
+    cursor: wait;
+    opacity: 0.5;
+}
 
 /* Keep the stop-window refresh control from increasing the header height. */
 .stop-eta-window .route-window-actions {
@@ -1121,10 +1216,6 @@ input:checked + .slider:before {
     gap: 20px;
 }
 
-/* Narrow screens are the default layout. */
-#btn-refresh {
-    padding: 6px 15px;
-}
 .eta-item-last { display: none; }
 .stop-eta-window .stop-eta-times .eta-item:nth-child(n + 3) { display: none; }
 .stop-eta-window td.stop-eta-destination { width: auto; }
@@ -1150,7 +1241,7 @@ input:checked + .slider:before {
 }
 
 .stop-eta-window .route-window-actions {
-    top: 8px;
+    top: 4px;
     right: 48px;
 }
 
@@ -1314,7 +1405,7 @@ th.route-no {
         width: 210px !important;
         min-width: 210px !important;
     }
-    .stop-eta-window .route-window-actions { top: 16px; right: 50px; }
+    .stop-eta-window .route-window-actions { top: 4px; right: 50px; }
 }
 
 @media (min-width: 600px) {

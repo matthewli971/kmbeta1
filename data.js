@@ -28,6 +28,6 @@ window.API_ENDPOINTS = Object.freeze({
 // Keep route values and regular expressions here so the list can be edited
 // without changing the route ETA window implementation.
 window.CROSS_OPERATOR_ROUTE_CONFIG = Object.freeze({
-    routes: Object.freeze(['S1', 'R8', 'SP10', 'SP12']),
+    routes: Object.freeze(['S1', 'X1', 'R8', 'SP10', 'SP12']),
     patterns: Object.freeze(['^[1369]\\d{2}[A-Za-z]?$', '^(?:S1|R8|SP10|SP12)$'])
 });

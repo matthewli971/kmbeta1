@@ -2,6 +2,8 @@
 const ROUTE_SEARCH_CACHE_KEY = 'kmbeta-route-search-v3';
 let routeSearchRoutes = null;
 let routeSearchLoadPromise = null;
+let routeSearchLastUpdated = null;
+let routeSearchLoadedRefreshKey = null;
 
 function getRouteSearchRefreshKey(date = new Date()) {
     const parts = new Intl.DateTimeFormat('en-CA', {
@@ -52,7 +54,10 @@ function groupRouteSearchRecords(records) {
 function getCachedRouteSearchRoutes() {
     try {
         const cached = JSON.parse(localStorage.getItem(ROUTE_SEARCH_CACHE_KEY) || 'null');
-        return cached?.refreshKey === getRouteSearchRefreshKey() && Array.isArray(cached.routes) ? cached.routes : null;
+        if (cached?.refreshKey !== getRouteSearchRefreshKey() || !Array.isArray(cached.routes)) return null;
+        routeSearchLastUpdated = cached.updatedAt || null;
+            routeSearchLoadedRefreshKey = cached.refreshKey;
+        return cached.routes;
     } catch (error) {
         console.warn('Unable to read route-search cache:', error);
         return null;
@@ -61,10 +66,35 @@ function getCachedRouteSearchRoutes() {
 
 function cacheRouteSearchRoutes(routes) {
     try {
-        localStorage.setItem(ROUTE_SEARCH_CACHE_KEY, JSON.stringify({ refreshKey: getRouteSearchRefreshKey(), routes }));
+        routeSearchLastUpdated = new Date().toISOString();
+        localStorage.setItem(ROUTE_SEARCH_CACHE_KEY, JSON.stringify({
+            refreshKey: getRouteSearchRefreshKey(),
+            updatedAt: routeSearchLastUpdated,
+            routes
+        }));
     } catch (error) {
         console.warn('Unable to cache route-search routes:', error);
     }
+}
+
+function getRouteSearchLastUpdated() {
+    return routeSearchLastUpdated;
+}
+
+function notifyRouteSearchUpdated() {
+    window.dispatchEvent(new Event('route-search-updated'));
+}
+
+async function refreshRouteSearchRoutes() {
+    routeSearchRoutes = null;
+    routeSearchLoadedRefreshKey = null;
+    routeSearchLoadPromise = null;
+    const routes = await fetchRouteSearchRoutes();
+    routeSearchRoutes = routes;
+    routeSearchLoadedRefreshKey = getRouteSearchRefreshKey();
+    cacheRouteSearchRoutes(routes);
+    notifyRouteSearchUpdated();
+    return routes;
 }
 
 async function fetchRouteSearchRoutes() {
@@ -123,17 +153,23 @@ async function fetchRouteSearchRoutes() {
 }
 
 async function loadRouteSearchRoutes() {
-    if (routeSearchRoutes) return routeSearchRoutes;
+    const refreshKey = getRouteSearchRefreshKey();
+    if (routeSearchRoutes && routeSearchLoadedRefreshKey === refreshKey) return routeSearchRoutes;
+    routeSearchRoutes = null;
+    routeSearchLoadedRefreshKey = null;
     const cachedRoutes = getCachedRouteSearchRoutes();
     if (cachedRoutes) {
         routeSearchRoutes = cachedRoutes;
+        notifyRouteSearchUpdated();
         return routeSearchRoutes;
     }
     if (!routeSearchLoadPromise) {
         routeSearchLoadPromise = fetchRouteSearchRoutes()
             .then(routes => {
                 routeSearchRoutes = routes;
+                routeSearchLoadedRefreshKey = refreshKey;
                 cacheRouteSearchRoutes(routes);
+                notifyRouteSearchUpdated();
                 return routes;
             })
             .finally(() => { routeSearchLoadPromise = null; });
@@ -146,7 +182,7 @@ function renderRouteSearchResults(list, query = '') {
     const matches = (routeSearchRoutes || []).filter(item => item.route.toUpperCase().startsWith(prefix));
     list.innerHTML = matches.length
         ? matches.map(item => {
-            const routeClass = getRouteTitleClass(item.route, item.company, item.companies);
+            const routeClass = typeof getRouteNumberClass === 'function' ? getRouteNumberClass(item.route, item.company) : '';
             const companyBadges = item.companies.split(',').map(company =>
                 `<span class="route-company-badge route-company-badge-${company.toLowerCase()}" title="${company}" aria-label="${company}"></span>`
             ).join('');
@@ -185,6 +221,11 @@ function initializeStationSearch() {
         dropdown.classList.add('hidden');
         search.setAttribute('aria-expanded', 'false');
     };
+    const clearSearchOnLeave = () => {
+        search.value = '';
+        list.innerHTML = '';
+        closeDropdown();
+    };
 
     search.addEventListener('focus', openDropdown);
     search.addEventListener('click', openDropdown);
@@ -200,10 +241,17 @@ function initializeStationSearch() {
     document.addEventListener('click', event => {
         if (!selector.contains(event.target)) closeDropdown();
     });
+    selector.addEventListener('mouseleave', clearSearchOnLeave);
     list.addEventListener('click', event => {
         const routeButton = event.target.closest('.route-search-result');
         if (!routeButton) return;
         openRouteWindow(routeButton.dataset.route, routeButton.dataset.company, routeButton.dataset.direction, routeButton.dataset.serviceType, routeButton.dataset.companies);
         closeDropdown();
+    });
+
+    // Load the route list on site entry so Settings can show the latest cache timestamp
+    // without waiting for the search field to receive focus.
+    loadRouteSearchRoutes().catch(error => {
+        console.error('Unable to initialize route-search routes:', error);
     });
 }

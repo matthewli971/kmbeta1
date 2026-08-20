@@ -5,12 +5,6 @@ const ROUTE_STOP_CACHE = {};
 let kmbRouteListPromise = null;
 let routeWindowState = null;
 
-function escapeHtml(value) {
-    const element = document.createElement('div');
-    element.textContent = value == null ? '' : String(value);
-    return element.innerHTML;
-}
-
 async function fetchKmbJson(url) {
     const response = await fetch(`${url}?t=${Date.now()}`, { cache: 'no-store' });
     if (!response.ok) throw new Error(`KMB API request failed (${response.status})`);
@@ -43,25 +37,6 @@ function getConfiguredStopCode(stopId) {
         if (match?.code) return match.code;
     }
     return '';
-}
-
-function isCrossOperatorRoute(route) {
-    const routeValue = String(route || '').trim().toUpperCase();
-    const config = window.CROSS_OPERATOR_ROUTE_CONFIG || {};
-    const listedRoutes = config.routes || [];
-    if (listedRoutes.some(value => String(value).toUpperCase() === routeValue)) return true;
-    return (config.patterns || []).some(pattern => {
-        try {
-            return new RegExp(pattern, 'i').test(routeValue);
-        } catch (error) {
-            console.warn('Invalid cross-operator route pattern:', pattern, error);
-            return false;
-        }
-    });
-}
-
-function getOtherOperator(company) {
-    return company === 'KMB' ? 'CTB' : company === 'CTB' ? 'KMB' : null;
 }
 
 function hasRouteInfo(routeInfo) {
@@ -97,7 +72,8 @@ async function fetchOtherOperatorEtas(route, company, direction, serviceType) {
     if (!otherCompany || !isCrossOperatorRoute(route)) return new Map();
 
     try {
-        const directionParam = direction === 'I' ? 'inbound' : 'outbound';
+        const otherDirection = await getCooperatedDirection(route, company, direction);
+        const directionParam = otherDirection === 'I' ? 'inbound' : 'outbound';
         const routeStops = otherCompany === 'KMB'
             ? await fetchKmbJson(`${ROUTE_API.kmb.routeStop}/${encodeURIComponent(route)}/${directionParam}/${serviceType}`)
             : await fetchCtbJson(`${ROUTE_API.ctb.routeStop}/${encodeURIComponent(route)}/${directionParam}`);
@@ -106,7 +82,7 @@ async function fetchOtherOperatorEtas(route, company, direction, serviceType) {
         if (otherCompany === 'KMB') {
             const routeEtas = await fetchKmbJson(`${ROUTE_API.kmb.routeEta}/${encodeURIComponent(route)}/${serviceType}`);
             (routeEtas || [])
-                .filter(eta => eta.dir === direction && Number(eta.service_type) === Number(serviceType) && eta.eta)
+                .filter(eta => eta.dir === otherDirection && Number(eta.service_type) === Number(serviceType) && eta.eta)
                 .forEach(eta => {
                     const sequence = String(eta.seq);
                     if (!etaBySequence.has(sequence)) etaBySequence.set(sequence, []);
@@ -118,7 +94,7 @@ async function fetchOtherOperatorEtas(route, company, direction, serviceType) {
                 const etas = await fetchCtbJson(`${ROUTE_API.ctb.eta}/${encodeURIComponent(stop.stop)}/${encodeURIComponent(route)}`)
                     .catch(() => []);
                 const sequence = String(stop.seq);
-                const matchingEtas = (etas || []).filter(eta => eta.dir === direction && eta.eta);
+                const matchingEtas = (etas || []).filter(eta => eta.dir === otherDirection && eta.eta);
                 if (matchingEtas.length) {
                     if (!etaBySequence.has(sequence)) etaBySequence.set(sequence, []);
                     matchingEtas.forEach(eta => {
@@ -179,7 +155,7 @@ function createRouteWindow() {
         if (event.target === overlay) closeRouteWindow();
     });
     overlay.querySelector('.route-window-close').addEventListener('click', closeRouteWindow);
-    overlay.querySelector('.route-window-refresh').addEventListener('click', () => loadRouteWindow(false));
+    overlay.querySelector('.route-window-refresh').addEventListener('click', refreshRouteWindow);
     overlay.querySelector('.route-direction-button').addEventListener('click', () => {
         routeWindowState.direction = routeWindowState.direction === 'O' ? 'I' : 'O';
         routeWindowState.serviceType = 1;
@@ -218,14 +194,6 @@ async function openRouteWindow(route, company, direction, serviceType, companies
     await loadRouteWindow();
 }
 
-function getRouteTitleClass(route, company, companies) {
-    if (/^[136]\d{2}$/.test(route)) return ' route-cross-harbour';
-    if (/^9\d{2}[A-Za-z]?$/.test(route)) return ' route-9xx';
-    if (company === 'CTB' && /^(A|NA)/i.test(route)) return ' route-ctb-airport';
-    if (company === 'LWB' && /^([AES]|NA)/i.test(route)) return ' route-lwb-airport';
-    return '';
-}
-
 function renderCompanyBadges(company, companies) {
     const operators = new Set((companies || company || '').split(',').map(value => value.trim()));
     return ['KMB', 'CTB'].filter(operator => operators.has(operator))
@@ -234,7 +202,7 @@ function renderCompanyBadges(company, companies) {
 }
 
 function renderRouteTitle(route, routeInfo, company, companies, reverseJourney = false) {
-    const routeClass = getRouteTitleClass(route, company, companies);
+    const routeClass = getRouteNumberClass(route, company);
     const routeLabel = `${renderCompanyBadges(company, companies)}<span class="route-window-route${routeClass}">${formatRouteNumber(route)}</span>`;
     if (!routeInfo?.orig_tc || !routeInfo?.dest_tc) return routeLabel;
     const origin = (reverseJourney ? routeInfo.dest_tc : routeInfo.orig_tc).trim();
@@ -299,14 +267,14 @@ function renderRouteStopEta(eta, showOperatorBorder = false) {
     </div>`;
 }
 
-async function loadRouteWindow(loadVariations = true) {
+async function loadRouteWindow(loadVariations = true, silent = false) {
     const overlay = document.querySelector('.route-eta-window-overlay');
     if (!overlay || !routeWindowState) return;
     const state = routeWindowState;
     const requestId = (state.requestId || 0) + 1;
     state.requestId = requestId;
     const route = state.route;
-    const direction = state.direction;
+    let direction = state.direction;
     const serviceType = state.serviceType;
     const title = overlay.querySelector('.route-window-title');
     const content = overlay.querySelector('.route-window-content');
@@ -314,12 +282,12 @@ async function loadRouteWindow(loadVariations = true) {
     const variationButton = overlay.querySelector('.route-variation-button');
     title.innerHTML = state.routeInfo
         ? renderRouteTitle(route, state.routeInfo, state.company, state.companies, state.routeTitleReverse)
-        : `${renderCompanyBadges(state.company, state.companies)}<span class="route-window-route${getRouteTitleClass(route, state.company, state.companies)}">${formatRouteNumber(route)}</span>`;
+        : `${renderCompanyBadges(state.company, state.companies)}<span class="route-window-route${getRouteNumberClass(route, state.company)}">${formatRouteNumber(route)}</span>`;
     directionButton.innerHTML = renderDirectionIcon();
     directionButton.className = `route-direction-button ${direction === 'I' ? 'inbound' : 'outbound'}`;
     variationButton.textContent = serviceType;
     variationButton.className = `route-variation-button ${serviceType === 1 ? 'normal' : 'variation'}`;
-    content.innerHTML = '<div class="route-window-loading">載入中...</div>';
+    if (!silent) content.innerHTML = '<div class="route-window-loading">載入中...</div>';
 
     if (isCrossOperatorRoute(route)) {
         const otherCompany = await checkOtherOperatorRoute(route, state.company);

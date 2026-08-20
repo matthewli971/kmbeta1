@@ -93,7 +93,7 @@
             await loadScript('route-win.js');
             await loadScript('stop-win.js');
             clearMonitorError();
-            document.getElementById('btn-refresh').addEventListener('click', render);
+            document.getElementById('btn-refresh').addEventListener('click', refreshHomepage);
         } catch (error) {
             console.error('Unable to start monitor:', error);
             showMonitorError('Unable to load monitor files. Please refresh the page.');

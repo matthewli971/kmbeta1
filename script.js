@@ -1,5 +1,5 @@
 // ===== App Version =====
-const APP_VERSION = "v0.49";
+const APP_VERSION = "v0.50";
 const HONG_KONG_TIME_ZONE = 'Asia/Hong_Kong';
 const COUNTDOWN_TARGET_DATE = '2026-09-16';
 
@@ -63,6 +63,38 @@ function updateDayCountdown() {
     }
 
     countdown.innerHTML = `${daysUntil}`;
+}
+
+async function refreshEtaWindowButton(button, reload, restoreText = 'F5') {
+    if (!button || button.disabled) return;
+    button.disabled = true;
+    button.innerHTML = '<span class="stop-loader-spinner" aria-label="重新整理中"></span>';
+    Promise.resolve()
+        .then(reload)
+        .catch(error => console.error('Unable to refresh ETA data:', error));
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    if (document.contains(button)) {
+        button.disabled = false;
+        button.textContent = restoreText;
+    }
+}
+
+async function refreshRouteWindow() {
+    const button = document.querySelector('.route-eta-window-overlay .route-window-refresh');
+    return refreshEtaWindowButton(button, () => loadRouteWindow(false, true));
+}
+
+async function refreshStopEtaWindow() {
+    const button = document.querySelector('.stop-eta-window-overlay .route-window-refresh');
+    if (!button || button.disabled || !stopEtaWindowState) return;
+    const state = stopEtaWindowState;
+    return refreshEtaWindowButton(button, () =>
+        openStopEtaWindow(state.stopId, state.stopName, state.stopCode, state.company, true)
+    );
+}
+
+async function refreshHomepage() {
+    return refreshEtaWindowButton(document.getElementById('btn-refresh'), render);
 }
 
 function getActivePriorityConfig() {
@@ -161,19 +193,132 @@ function formatRouteNumber(route) {
 
 function getRouteNumberClass(route, company) {
     const routeValue = String(route || '');
-    let routeClass = 'route-no';
+    let routeClass = '';
 
-    if (/^\d{3}[A-Za-z]?$/.test(routeValue) && routeValue.startsWith('9')) {
-        routeClass += ' route-9xx';
-    } else if (company === 'CTB') {
-        routeClass += /^(A|NA)/i.test(routeValue) ? ' ctb-airport' : ' ctb';
+    if (company === 'CTB') {
+        routeClass += /^(A|NA)/i.test(routeValue) ? ' route-ctb-airport' : ' ctb';
+    }
+
+    if (/^[A-Z]?[136]\d{2}[A-Z]?$/.test(routeValue))  {
+        routeClass += ' route-cross-harbour';
+    } else if (/^[A-Z]?[9]\d{2}[A-Z]?$/.test(routeValue) && routeValue.startsWith('9')) {
+        routeClass += ' route-cross-wht';
     } else if (company === 'GMB') {
         routeClass += ' gmb';
     } else if (company === 'KMB' && /^([AES]|NA)/i.test(routeValue)) {
-        routeClass += ' text-orange';
+        routeClass += ' route-lwb-airport';
     }
 
     return routeClass;
+}
+
+function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+    const R = 6371e3;
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    
+    const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    
+    return R * c;
+}
+
+function deg2rad(deg) {
+    return deg * (Math.PI / 180);
+}
+
+// ===== Shared co-operated route helpers =====
+const COOPERATED_ROUTE_ENDPOINT_CACHE = new Map();
+const COOPERATED_STOP_CACHE = new Map();
+
+function isCrossOperatorRoute(route) {
+    const routeValue = String(route || '').trim().toUpperCase();
+    const config = window.CROSS_OPERATOR_ROUTE_CONFIG || {};
+    if ((config.routes || []).some(value => String(value).toUpperCase() === routeValue)) return true;
+    return (config.patterns || []).some(pattern => {
+        try {
+            return new RegExp(pattern, 'i').test(routeValue);
+        } catch (error) {
+            console.warn('Invalid cross-operator route pattern:', pattern, error);
+            return false;
+        }
+    });
+}
+
+function getOtherOperator(company) {
+    return company === 'KMB' ? 'CTB' : company === 'CTB' ? 'KMB' : null;
+}
+
+async function fetchCooperatedStop(company, stopId) {
+    const key = `${company}:${stopId}`;
+    if (!COOPERATED_STOP_CACHE.has(key)) {
+        const promise = company === 'KMB'
+            ? fetchKmbStop(stopId)
+            : fetchCtbJson(`${ROUTE_API.ctb.stop}/${encodeURIComponent(stopId)}`);
+        COOPERATED_STOP_CACHE.set(key, promise.catch(error => {
+            COOPERATED_STOP_CACHE.delete(key);
+            throw error;
+        }));
+    }
+    return COOPERATED_STOP_CACHE.get(key);
+}
+
+async function getCooperatedRouteEndpoints(route, company, direction) {
+    const serviceType = 1;
+    const key = `${company}:${route}:${direction}:${serviceType}`;
+    if (!COOPERATED_ROUTE_ENDPOINT_CACHE.has(key)) {
+        const directionParam = direction === 'I' ? 'inbound' : 'outbound';
+        const promise = (async () => {
+            const stops = company === 'KMB'
+                ? await fetchKmbJson(`${ROUTE_API.kmb.routeStop}/${encodeURIComponent(route)}/${directionParam}/${serviceType}`)
+                : await fetchCtbJson(`${ROUTE_API.ctb.routeStop}/${encodeURIComponent(route)}/${directionParam}`);
+            if (!stops || stops.length < 2) return null;
+            const [first, last] = await Promise.all([
+                fetchCooperatedStop(company, stops[0].stop),
+                fetchCooperatedStop(company, stops[stops.length - 1].stop)
+            ]);
+            const points = [first, last].map(stop => ({ lat: Number(stop?.lat), long: Number(stop?.long) }));
+            return points.every(point => Number.isFinite(point.lat) && Number.isFinite(point.long)) ? points : null;
+        })();
+        COOPERATED_ROUTE_ENDPOINT_CACHE.set(key, promise.catch(error => {
+            COOPERATED_ROUTE_ENDPOINT_CACHE.delete(key);
+            throw error;
+        }));
+    }
+    return COOPERATED_ROUTE_ENDPOINT_CACHE.get(key);
+}
+
+async function getCooperatedDirection(route, company, direction) {
+    const otherCompany = getOtherOperator(company);
+    if (!otherCompany || !isCrossOperatorRoute(route)) return direction;
+    try {
+        const [source, sameDirection] = await Promise.all([
+            getCooperatedRouteEndpoints(route, company, direction),
+            getCooperatedRouteEndpoints(route, otherCompany, direction)
+        ]);
+        if (!source || !sameDirection) return direction;
+        const sameStart = getDistanceFromLatLonInMeters(source[0].lat, source[0].long, sameDirection[0].lat, sameDirection[0].long);
+        const sameEnd = getDistanceFromLatLonInMeters(source[1].lat, source[1].long, sameDirection[1].lat, sameDirection[1].long);
+        if (sameStart < 200 && sameEnd < 200) return direction;
+
+        const oppositeDirection = direction === 'O' ? 'I' : 'O';
+        const opposite = await getCooperatedRouteEndpoints(route, otherCompany, oppositeDirection);
+        if (!opposite) return direction;
+        const oppositeStart = getDistanceFromLatLonInMeters(source[0].lat, source[0].long, opposite[0].lat, opposite[0].long);
+        const oppositeEnd = getDistanceFromLatLonInMeters(source[1].lat, source[1].long, opposite[1].lat, opposite[1].long);
+        if (oppositeStart < 200 && oppositeEnd < 200) {
+            console.log(`Route ${route} direction flipped (${direction} → ${oppositeDirection}) for ${otherCompany}`);
+            return oppositeDirection;
+        }
+        return direction;
+    } catch (error) {
+        console.warn(`Unable to compare co-operated route direction for ${route}:`, error);
+        return direction;
+    }
 }
 
 function stopRefreshIndicatorHtml() {
@@ -396,6 +541,7 @@ async function processStopGroup(stopGroup) {
             mergedGroups[key] = {
                 ...group,
                 companies: new Set([group.company]),
+                operatorDirections: { [group.company]: group.dir },
                 stopCodes: { [group.company]: { code: group.stopCode, label: group.stopLabel } },
                 stopIds: { [group.company]: group.stopId },
                 dests: { [group.company]: group.dest }
@@ -403,6 +549,7 @@ async function processStopGroup(stopGroup) {
         } else {
             mergedGroups[key].etas = mergedGroups[key].etas.concat(group.etas);
             mergedGroups[key].companies.add(group.company);
+            mergedGroups[key].operatorDirections[group.company] = group.dir;
             if (!mergedGroups[key].stopCodes[group.company]) {
                 mergedGroups[key].stopCodes[group.company] = { code: group.stopCode, label: group.stopLabel };
             }
@@ -424,6 +571,15 @@ async function processStopGroup(stopGroup) {
         }
         return true;
     });
+
+    // Co-operated operators can use opposite O/I codes for the same journey.
+    // Compare endpoint coordinates only for confirmed co-operated routes.
+    await Promise.all(validGroups.filter(group => group.companies?.size > 1).map(async group => {
+        const sourceCompany = group.companies.has('KMB') ? 'KMB' : [...group.companies][0];
+        const sourceDirection = group.operatorDirections[sourceCompany] || group.dir;
+        const otherCompany = sourceCompany === 'KMB' ? 'CTB' : 'KMB';
+        group.operatorDirections[otherCompany] = await getCooperatedDirection(group.route, sourceCompany, sourceDirection);
+    }));
 
     const sortedGroups = sortEtaGroupsByFirstArrival(validGroups);
 
@@ -575,7 +731,10 @@ async function processStopGroup(stopGroup) {
             // Determine effective direction for display (apply INBOUND_FLIP)
             const flipList = (typeof INBOUND_FLIP !== 'undefined') ? INBOUND_FLIP : [];
             const isFlipped = flipList.includes(group.route);
-            const effectiveDir = isFlipped ? (group.dir === 'O' ? 'I' : 'O') : group.dir;
+            const displayCompany = (group.companies && group.companies.size > 1 && uniqueEtas[0] && uniqueEtas[0]._co)
+                ? uniqueEtas[0]._co : group.company;
+            const displayDirection = group.operatorDirections?.[displayCompany] || group.dir;
+            const effectiveDir = isFlipped ? (displayDirection === 'O' ? 'I' : 'O') : displayDirection;
 
             if (group.companies && group.companies.size > 1 && group.stopCodes) {
                 // Co-operated route: show both company codes separated by /
@@ -619,10 +778,9 @@ async function processStopGroup(stopGroup) {
             }
 
             // For co-operated routes, use company of earliest ETA for route color
-            const displayCompany = (group.companies && group.companies.size > 1 && uniqueEtas[0] && uniqueEtas[0]._co)
-                ? uniqueEtas[0]._co : group.company;
-
             const routeClass = getRouteNumberClass(group.route, displayCompany);
+            const sourceCompany = group.company;
+            const sourceDirection = group.operatorDirections?.[sourceCompany] || group.dir;
             let routeTextClass = 'route-text';
             if (group.route.length >= 4) {
                 routeTextClass += ' long-route-text';
@@ -655,10 +813,10 @@ async function processStopGroup(stopGroup) {
             const routeEtaSupported = displayCompany === 'KMB' || displayCompany === 'CTB';
             const routeLinkState = routeEtaSupported ? '' : ' disabled';
             const routeLinkTitle = routeEtaSupported ? ' title="查看路線到站時間"' : '';
-            const routeLinkHtml = `<button class="route-link ${routeTextClass}" type="button"${routeLinkState}${routeLinkTitle} data-route="${escapeHtml(group.route)}" data-company="${displayCompany}" data-companies="${group.companies ? [...group.companies].join(',') : group.company}" data-direction="${group.dir}" data-service-type="${uniqueEtas[0]?.service_type || 1}" aria-label="查看${escapeHtml(group.route)}路線到站時間">${formatRouteNumber(group.route)}</button>`;
+            const routeLinkHtml = `<button class="route-link ${routeTextClass}" type="button"${routeLinkState}${routeLinkTitle} data-route="${escapeHtml(group.route)}" data-company="${sourceCompany}" data-companies="${group.companies ? [...group.companies].join(',') : group.company}" data-direction="${sourceDirection}" data-service-type="${uniqueEtas[0]?.service_type || 1}" aria-label="查看${escapeHtml(group.route)}路線到站時間">${formatRouteNumber(group.route)}</button>`;
 
             row.innerHTML = `
-                <td class="${routeClass}">${routeLinkHtml}</td>
+                <td class="route-no${routeClass}">${routeLinkHtml}</td>
                 <td class="${destClass}">${destContent}</td>
                 <td class="time-container">${departuresHtml}</td>
             `;
