@@ -46,7 +46,7 @@ async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB', si
     overlay.innerHTML = `
         <section class="route-window stop-eta-window" role="dialog" aria-modal="true" aria-label="巴士站到站時間">
             <header class="route-window-header">
-                <div class="stop-eta-window-title" style="flex-direction:row;align-items:baseline;gap:8px"><span>${escapeHtml(displayName)}</span> ${interchangeBadgeHtml} ${stopCode ? `<span class="stop-eta-code">${escapeHtml(stopCode)}</span>` : ''}</div>
+                <div class="stop-eta-window-title" style="flex-direction:row;align-items:baseline;gap:8px"><span>${escapeHtml(displayName)}</span> ${interchangeBadgeHtml} ${stopCode ? `<span class="stop-eta-code">${escapeHtml(formatStopCodeForDisplay(company, stopCode))}</span>` : ''}</div>
                 <div class="route-window-actions">
                     <button class="route-window-refresh" type="button" title="重新整理" aria-label="重新整理">F5</button>
                 </div>
@@ -138,5 +138,15 @@ document.addEventListener('click', event => {
     const button = event.target.closest('.route-stop-info-button');
     if (!button) return;
     event.stopPropagation();
+    if (button.dataset.route) {
+        openRouteWindow(
+            button.dataset.route,
+            button.dataset.company || 'KMB',
+            button.dataset.direction || 'O',
+            button.dataset.serviceType || 1,
+            button.dataset.companies || button.dataset.company || 'KMB'
+        );
+        return;
+    }
     openStopEtaWindow(button.dataset.stopId, button.dataset.stopName, button.dataset.stopCode, button.dataset.company || 'KMB');
 });

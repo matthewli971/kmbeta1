@@ -39,6 +39,16 @@ function getConfiguredStopCode(stopId) {
     return '';
 }
 
+function renderOtherRouteStopCode(stop, primaryCompany, stopName) {
+    if (!stop?.code) return '';
+    const company = getOtherOperator(primaryCompany);
+    const displayCode = formatStopCodeForDisplay(company, stop.code);
+    const infoButton = stop.stopId
+        ? `<button class="route-stop-info-button" type="button" data-company="${escapeHtml(company)}" data-stop-id="${escapeHtml(stop.stopId)}" data-stop-name="${escapeHtml(stopName)}" data-stop-code="${escapeHtml(stop.code)}" title="查看本站到站時間" aria-label="查看${escapeHtml(stopName)}到站時間">${escapeHtml(displayCode)}</button>`
+        : '';
+    return ` ${infoButton}`;
+}
+
 function hasRouteInfo(routeInfo) {
     if (!routeInfo) return false;
     if (Array.isArray(routeInfo)) return routeInfo.length > 0;
@@ -108,6 +118,41 @@ async function fetchOtherOperatorEtas(route, company, direction, serviceType) {
         return etaBySequence;
     } catch (error) {
         console.warn(`Unable to load ${otherCompany} ETA for route ${route}:`, error);
+        return new Map();
+    }
+}
+
+async function fetchOtherOperatorStopCodes(route, company, direction, serviceType) {
+    const otherCompany = getOtherOperator(company);
+    if (!otherCompany || !isCrossOperatorRoute(route)) return new Map();
+
+    try {
+        const otherDirection = await getCooperatedDirection(route, company, direction);
+        const directionParam = otherDirection === 'I' ? 'inbound' : 'outbound';
+        const routeStops = otherCompany === 'KMB'
+            ? await fetchKmbJson(`${ROUTE_API.kmb.routeStop}/${encodeURIComponent(route)}/${directionParam}/${serviceType}`)
+            : await fetchCtbJson(`${ROUTE_API.ctb.routeStop}/${encodeURIComponent(route)}/${directionParam}`);
+        const stopCodesBySequence = new Map();
+
+        if (otherCompany === 'CTB') {
+            (routeStops || []).forEach(stop => {
+                stopCodesBySequence.set(String(stop.seq), { code: stop.stop, stopId: stop.stop });
+            });
+        } else {
+            const stopDetails = await Promise.all((routeStops || []).map(stop =>
+                fetchKmbStop(stop.stop).catch(() => null)
+            ));
+            (routeStops || []).forEach((stop, index) => {
+                const name = stopDetails[index]?.name_tc || stopDetails[index]?.name_en || '';
+                const codeMatch = name.match(/\s*\(([A-Z]{1,4}\d{1,4}[A-Z]?)\)$/i);
+                const code = codeMatch?.[1] || getConfiguredStopCode(stop.stop) || '';
+                if (code) stopCodesBySequence.set(String(stop.seq), { code, stopId: stop.stop });
+            });
+        }
+
+        return stopCodesBySequence;
+    } catch (error) {
+        console.warn(`Unable to load ${otherCompany} stop codes for route ${route}:`, error);
         return new Map();
     }
 }
@@ -340,6 +385,9 @@ async function loadRouteWindow(loadVariations = true, silent = false) {
             const otherEtaBySequence = state.crossOperator
                 ? await fetchOtherOperatorEtas(route, state.company, direction, serviceType)
                 : new Map();
+            const otherStopCodesBySequence = state.crossOperator
+                ? await fetchOtherOperatorStopCodes(route, state.company, direction, serviceType)
+                : new Map();
             otherEtaBySequence.forEach((etas, sequence) => {
                 if (!etaBySequence.has(sequence)) etaBySequence.set(sequence, []);
                 etaBySequence.get(sequence).push(...etas);
@@ -351,14 +399,15 @@ async function loadRouteWindow(loadVariations = true, silent = false) {
                 const detail = stopDetails[index];
                 const name = detail?.name_tc || detail?.name_en || stop.stop;
                 const configuredStopCode = getConfiguredStopCode(stop.stop);
-                const codeMatch = name.match(/\s*\(([A-Z]{1,4}\d{1,4}[A-Z]?)\)$/);
+                const codeMatch = name.match(/\s*\(([A-Z]{1,4}\d{1,4}[A-Z]?)\)$/i);
                 let displayName = codeMatch ? name.slice(0, codeMatch.index).trim() : name;
                 const stopCode = codeMatch?.[1] || configuredStopCode || '';
                 const interchangeMatch = displayName.match(/^(.+?轉車站)\s*[-－–—]\s*(.+)$/);
                 const interchangeName = interchangeMatch?.[1] || '';
                 if (interchangeMatch) displayName = interchangeMatch[2].trim();
-                const stopCodeHtml = stopCode || interchangeName
-                    ? `<span class="route-stop-code">${stopCode ? escapeHtml(stopCode) : ''}<button class="route-stop-info-button" type="button" data-company="KMB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(displayName)}" data-stop-code="${escapeHtml(stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(displayName)}到站時間">i</button>${interchangeName ? `<span class="route-stop-interchange">${stopCode ? ' ' : ''}${escapeHtml(interchangeName)}</span>` : ''}</span>`
+                const otherStopCode = otherStopCodesBySequence.get(String(stop.seq));
+                const stopCodeHtml = stopCode || interchangeName || otherStopCode?.code
+                    ? `<span class="route-stop-code">${stopCode ? `<button class="route-stop-info-button" type="button" data-company="KMB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(displayName)}" data-stop-code="${escapeHtml(stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(displayName)}到站時間">${escapeHtml(stopCode)}</button>` : ''}${interchangeName ? `<span class="route-stop-interchange">${stopCode ? ' ' : ''}${escapeHtml(interchangeName)}</span>` : ''}${renderOtherRouteStopCode(otherStopCode, state.company, displayName)}</span>`
                     : '';
                 const etas = (etaBySequence.get(String(stop.seq)) || []).slice(0, 3);
                 const etaHtml = etas.length
@@ -398,6 +447,9 @@ async function loadRouteWindow(loadVariations = true, silent = false) {
             const otherEtaBySequence = state.crossOperator
                 ? await fetchOtherOperatorEtas(route, state.company, direction, 1)
                 : new Map();
+            const otherStopCodesBySequence = state.crossOperator
+                ? await fetchOtherOperatorStopCodes(route, state.company, direction, 1)
+                : new Map();
             if (!routeWindowState || routeWindowState !== state || state.requestId !== requestId) return;
             const rows = (routeStops || []).map((stop, index) => {
                 const detail = stopDetails[index];
@@ -410,7 +462,8 @@ async function loadRouteWindow(loadVariations = true, silent = false) {
                     .sort((a, b) => new Date(a.eta) - new Date(b.eta))
                     .slice(0, 3);
                 const etaHtml = etas.length ? etas.map(eta => renderRouteStopEta(eta, state.crossOperator)).join('') : '<span class="route-stop-no-eta">暫無班次</span>';
-                const stopCodeHtml = `<span class="route-stop-code">${escapeHtml(stop.stop)}<button class="route-stop-info-button" type="button" data-company="CTB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(name)}" data-stop-code="${escapeHtml(stop.stop)}" title="查看本站到站時間" aria-label="查看${escapeHtml(name)}到站時間">i</button></span>`;
+                const displayStopCode = formatStopCodeForDisplay('CTB', stop.stop);
+                const stopCodeHtml = `<span class="route-stop-code"><button class="route-stop-info-button" type="button" data-company="CTB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(name)}" data-stop-code="${escapeHtml(stop.stop)}" title="查看本站到站時間" aria-label="查看${escapeHtml(name)}到站時間">${escapeHtml(displayStopCode)}</button>${renderOtherRouteStopCode(otherStopCodesBySequence.get(String(stop.seq)), state.company, name)}</span>`;
                 return `<tr><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name"><span class="route-stop-name-text">${escapeHtml(name)}</span>${stopCodeHtml}</td><td class="route-stop-times">${etaHtml}</td></tr>`;
             }).join('');
             content.innerHTML = `<table class="route-stop-table"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">未能取得站點資料。</td></tr>'}</tbody></table>`;

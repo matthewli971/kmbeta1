@@ -1,5 +1,5 @@
 // ===== App Version =====
-const APP_VERSION = "v0.50";
+const APP_VERSION = "v0.51";
 const HONG_KONG_TIME_ZONE = 'Asia/Hong_Kong';
 const COUNTDOWN_TARGET_DATE = '2026-09-16';
 
@@ -23,6 +23,13 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+// Citybus stop IDs retain their leading zeroes for API requests, but omit
+// them when shown to the user (for example, 001790 is displayed as 1790).
+function formatStopCodeForDisplay(company, stopCode) {
+    if (company !== 'CTB' || stopCode === null || stopCode === undefined) return String(stopCode ?? '');
+    return String(stopCode).replace(/^0+(?=\d)/, '');
 }
 
 function updateClock() {
@@ -364,6 +371,15 @@ function setStopRefreshState(section, state) {
     }
 }
 
+function updateMarqueeOverflow(container) {
+    if (!container) return;
+    requestAnimationFrame(() => {
+        container.querySelectorAll('.dest-remark-marquee').forEach(marquee => {
+            marquee.classList.toggle('is-overflowing', marquee.scrollWidth > marquee.clientWidth);
+        });
+    });
+}
+
 async function processStopGroup(stopGroup) {
     const isGMBGroup = stopGroup.stops.every(s => s.type === 'GMB');
     const section = document.createElement('div');
@@ -517,12 +533,30 @@ async function processStopGroup(stopGroup) {
         });
     });
 
+    // Normalize co-operated directions before merging KMB and CTB groups.
+    // This is required when the two operators use opposite O/I codes and
+    // their destination text is not identical (for example, 680).
+    const coOperatedGroupsByRoute = new Map();
+    flatResults.forEach(group => {
+        if ((group.company !== 'KMB' && group.company !== 'CTB') || !isCrossOperatorRoute(group.route)) return;
+        if (!coOperatedGroupsByRoute.has(group.route)) coOperatedGroupsByRoute.set(group.route, []);
+        coOperatedGroupsByRoute.get(group.route).push(group);
+    });
+    await Promise.all([...coOperatedGroupsByRoute.entries()]
+        .filter(([, groups]) => new Set(groups.map(group => group.company)).size > 1)
+        .flatMap(([route, groups]) => groups.map(async group => {
+            group.coOperatedDirection = group.company === 'KMB'
+                ? group.dir
+                : await getCooperatedDirection(route, 'CTB', group.dir);
+        })));
+
     // Merge same routes from different stops/companies (KMB+CTB co-operated)
     const mergedGroups = {};
     flatResults.forEach(group => {
         const isBusOperator = group.company === 'KMB' || group.company === 'CTB';
         const coKey = isBusOperator ? 'BUS' : group.company;
-        const defaultKey = `${coKey}-${group.route}-${group.dir}`;
+        const directionKey = isBusOperator ? (group.coOperatedDirection || group.dir) : group.dir;
+        const defaultKey = `${coKey}-${group.route}-${directionKey}`;
         // KMB and CTB can report opposite direction codes for the same co-operated journey.
         // Match that case by destination only when adding the other operator, preserving
         // separate same-operator journeys that happen to share a destination.
@@ -533,7 +567,9 @@ async function processStopGroup(stopGroup) {
                     .some(dest => String(dest || '').trim() === String(group.dest || '').trim());
                 return existingGroup.route === group.route
                     && !existingGroup.companies.has(group.company)
-                    && hasMatchingDestination;
+                    && (hasMatchingDestination
+                        || (isCrossOperatorRoute(group.route)
+                            && existingGroup.coOperatedDirection === group.coOperatedDirection));
             })
             : null;
         const key = matchingOperatorKey || defaultKey;
@@ -659,13 +695,7 @@ async function processStopGroup(stopGroup) {
                 } else if (item.rmk_tc) {
                     const cleanedRmk = cleanRemark(item.rmk_tc);
                     if (index === 0) {
-                        const isChi = /[\u4e00-\u9fa5]/.test(cleanedRmk);
-                        const marqueeThreshold = isChi ? 12 : 24;
-                        if (cleanedRmk.length > marqueeThreshold) {
-                            destRemarkHtml = `<span class="dest-remark dest-remark-marquee"><span class="marquee-inner">[!]${cleanedRmk}</span></span>`;
-                        } else {
-                            destRemarkHtml = `<span class="dest-remark">[!]${cleanedRmk}</span>`;
-                        }
+                        destRemarkHtml = `<span class="dest-remark dest-remark-marquee"><span class="marquee-inner">⚠${cleanedRmk}</span></span>`;
                     } else {
                         remarkText = formatRemark(cleanedRmk);
                     }
@@ -749,13 +779,15 @@ async function processStopGroup(stopGroup) {
                 const stopCodeItems = ['KMB', 'CTB'].flatMap(company => {
                     const stopCode = group.stopCodes[company]?.code;
                     if (!stopCode) return [];
+                    const displayStopCode = formatStopCodeForDisplay(company, stopCode);
                     const stopId = group.stopIds && group.stopIds[company];
+                    const operatorDirection = group.operatorDirections?.[company] || group.dir;
                     const infoButtonHtml = stopId
-                        ? `<button class="route-stop-info-button" type="button" data-company="${company}" data-stop-id="${escapeHtml(stopId)}" data-stop-name="${escapeHtml(stopName)}" data-stop-code="${escapeHtml(stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(stopName)}到站時間">i</button>`
+                        ? `<button class="route-stop-info-button" type="button" data-route="${escapeHtml(group.route)}" data-company="${company}" data-companies="${escapeHtml([...group.companies].join(','))}" data-direction="${escapeHtml(operatorDirection)}" data-service-type="${escapeHtml(uniqueEtas[0]?.service_type || 1)}" data-stop-id="${escapeHtml(stopId)}" data-stop-name="${escapeHtml(stopName)}" data-stop-code="${escapeHtml(stopCode)}" title="查看路線到站時間" aria-label="查看${escapeHtml(group.route)}路線到站時間">${escapeHtml(displayStopCode)}</button>`
                         : '';
-                    return `${escapeHtml(stopCode)}${infoButtonHtml}`;
+                    return infoButtonHtml;
                 });
-                stopCodeHtml += `<span class="stop-code">${dirCircleHtml} ${stopCodeItems.join(' / ')}</span>`;
+                stopCodeHtml += `<span class="stop-code">${dirCircleHtml} ${stopCodeItems.join(' ')}</span>`;
             } else if (group.company !== 'GMB') {
                 if (group.stopLabel) {
                     groupStopCodeHtml += `<span class="stop-label">${escapeHtml(group.stopLabel)}</span>`;
@@ -772,9 +804,9 @@ async function processStopGroup(stopGroup) {
                 const infoCompany = kmbStopId ? 'KMB' : 'CTB';
                 const stopName = stopGroup.name || '';
                 const infoButtonHtml = infoStopId
-                    ? `<button class="route-stop-info-button" type="button" data-company="${infoCompany}" data-stop-id="${escapeHtml(infoStopId)}" data-stop-name="${escapeHtml(stopName)}" data-stop-code="${escapeHtml(group.stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(stopName)}到站時間">i</button>`
+                    ? `<button class="route-stop-info-button" type="button" data-route="${escapeHtml(group.route)}" data-company="${infoCompany}" data-companies="${escapeHtml(group.companies ? [...group.companies].join(',') : group.company)}" data-direction="${escapeHtml(group.operatorDirections?.[infoCompany] || group.dir)}" data-service-type="${escapeHtml(uniqueEtas[0]?.service_type || 1)}" data-stop-id="${escapeHtml(infoStopId)}" data-stop-name="${escapeHtml(stopName)}" data-stop-code="${escapeHtml(group.stopCode)}" title="查看路線到站時間" aria-label="查看${escapeHtml(group.route)}路線到站時間">${escapeHtml(formatStopCodeForDisplay(infoCompany, group.stopCode))}</button>`
                     : '';
-                stopCodeHtml += `<span class="stop-code">${dirCircleHtml} ${group.stopCode}${infoButtonHtml}</span>`;
+                stopCodeHtml += `<span class="stop-code">${dirCircleHtml} ${infoButtonHtml}</span>`;
             }
 
             // For co-operated routes, use company of earliest ETA for route color
@@ -933,6 +965,7 @@ async function render() {
                     if (newContent.className !== currentEl.className) {
                         currentEl.className = newContent.className;
                     }
+                    updateMarqueeOverflow(currentEl);
                     setStopRefreshState(currentEl, 'complete');
                 }
             }
