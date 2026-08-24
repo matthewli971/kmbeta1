@@ -1,5 +1,5 @@
 // ===== App Version =====
-const APP_VERSION = "v0.51";
+const APP_VERSION = "v0.52";
 const HONG_KONG_TIME_ZONE = 'Asia/Hong_Kong';
 const COUNTDOWN_TARGET_DATE = '2026-09-16';
 
@@ -781,9 +781,8 @@ async function processStopGroup(stopGroup) {
                     if (!stopCode) return [];
                     const displayStopCode = formatStopCodeForDisplay(company, stopCode);
                     const stopId = group.stopIds && group.stopIds[company];
-                    const operatorDirection = group.operatorDirections?.[company] || group.dir;
                     const infoButtonHtml = stopId
-                        ? `<button class="route-stop-info-button" type="button" data-route="${escapeHtml(group.route)}" data-company="${company}" data-companies="${escapeHtml([...group.companies].join(','))}" data-direction="${escapeHtml(operatorDirection)}" data-service-type="${escapeHtml(uniqueEtas[0]?.service_type || 1)}" data-stop-id="${escapeHtml(stopId)}" data-stop-name="${escapeHtml(stopName)}" data-stop-code="${escapeHtml(stopCode)}" title="查看路線到站時間" aria-label="查看${escapeHtml(group.route)}路線到站時間">${escapeHtml(displayStopCode)}</button>`
+                        ? `<button class="route-stop-info-button" type="button" data-company="${company}" data-stop-id="${escapeHtml(stopId)}" data-stop-name="${escapeHtml(stopName)}" data-stop-code="${escapeHtml(stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(stopName)}到站時間">${escapeHtml(displayStopCode)}</button>`
                         : '';
                     return infoButtonHtml;
                 });
@@ -804,15 +803,15 @@ async function processStopGroup(stopGroup) {
                 const infoCompany = kmbStopId ? 'KMB' : 'CTB';
                 const stopName = stopGroup.name || '';
                 const infoButtonHtml = infoStopId
-                    ? `<button class="route-stop-info-button" type="button" data-route="${escapeHtml(group.route)}" data-company="${infoCompany}" data-companies="${escapeHtml(group.companies ? [...group.companies].join(',') : group.company)}" data-direction="${escapeHtml(group.operatorDirections?.[infoCompany] || group.dir)}" data-service-type="${escapeHtml(uniqueEtas[0]?.service_type || 1)}" data-stop-id="${escapeHtml(infoStopId)}" data-stop-name="${escapeHtml(stopName)}" data-stop-code="${escapeHtml(group.stopCode)}" title="查看路線到站時間" aria-label="查看${escapeHtml(group.route)}路線到站時間">${escapeHtml(formatStopCodeForDisplay(infoCompany, group.stopCode))}</button>`
+                    ? `<button class="route-stop-info-button" type="button" data-company="${infoCompany}" data-stop-id="${escapeHtml(infoStopId)}" data-stop-name="${escapeHtml(stopName)}" data-stop-code="${escapeHtml(group.stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(stopName)}到站時間">${escapeHtml(formatStopCodeForDisplay(infoCompany, group.stopCode))}</button>`
                     : '';
                 stopCodeHtml += `<span class="stop-code">${dirCircleHtml} ${infoButtonHtml}</span>`;
             }
 
             // For co-operated routes, use company of earliest ETA for route color
             const routeClass = getRouteNumberClass(group.route, displayCompany);
-            const sourceCompany = group.company;
-            const sourceDirection = group.operatorDirections?.[sourceCompany] || group.dir;
+            const routeCompany = displayCompany;
+            const routeDirection = group.operatorDirections?.[routeCompany] || group.dir;
             let routeTextClass = 'route-text';
             if (group.route.length >= 4) {
                 routeTextClass += ' long-route-text';
@@ -845,7 +844,7 @@ async function processStopGroup(stopGroup) {
             const routeEtaSupported = displayCompany === 'KMB' || displayCompany === 'CTB';
             const routeLinkState = routeEtaSupported ? '' : ' disabled';
             const routeLinkTitle = routeEtaSupported ? ' title="查看路線到站時間"' : '';
-            const routeLinkHtml = `<button class="route-link ${routeTextClass}" type="button"${routeLinkState}${routeLinkTitle} data-route="${escapeHtml(group.route)}" data-company="${sourceCompany}" data-companies="${group.companies ? [...group.companies].join(',') : group.company}" data-direction="${sourceDirection}" data-service-type="${uniqueEtas[0]?.service_type || 1}" aria-label="查看${escapeHtml(group.route)}路線到站時間">${formatRouteNumber(group.route)}</button>`;
+            const routeLinkHtml = `<button class="route-link ${routeTextClass}" type="button"${routeLinkState}${routeLinkTitle} data-route="${escapeHtml(group.route)}" data-company="${routeCompany}" data-companies="${group.companies ? [...group.companies].join(',') : group.company}" data-direction="${routeDirection}" data-service-type="${uniqueEtas[0]?.service_type || 1}" aria-label="查看${escapeHtml(group.route)}路線到站時間">${formatRouteNumber(group.route)}</button>`;
 
             row.innerHTML = `
                 <td class="route-no${routeClass}">${routeLinkHtml}</td>

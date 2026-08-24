@@ -312,6 +312,82 @@ function renderRouteStopEta(eta, showOperatorBorder = false) {
     </div>`;
 }
 
+function isCurrentRouteWindowRequest(state, requestId, overlay, direction, serviceType) {
+    return routeWindowState === state
+        && state.requestId === requestId
+        && state.direction === direction
+        && Number(state.serviceType) === Number(serviceType)
+        && document.contains(overlay);
+}
+
+function getRouteWindowEtas(primaryEtaBySequence, otherEtaBySequence, sequence) {
+    return [
+        ...(primaryEtaBySequence.get(sequence) || []),
+        ...(otherEtaBySequence.get(sequence) || [])
+    ]
+        .filter(eta => eta?.eta)
+        .sort((a, b) => new Date(a.eta) - new Date(b.eta))
+        .slice(0, 3);
+}
+
+// Start co-operated operator requests without making the primary route table
+// wait. The secondary result is buffered until the primary table is available,
+// then the table is rendered again with the merged ETA data.
+function createOtherOperatorRouteLoader(state, requestId, overlay, route, direction, serviceType, loadOtherOperator) {
+    let renderTable = null;
+    let primaryTableReady = false;
+    let loadingStarted = false;
+    let otherEtaBySequence = new Map();
+    let otherStopCodesBySequence = new Map();
+
+    const isCurrent = () => isCurrentRouteWindowRequest(state, requestId, overlay, direction, serviceType);
+    const renderSecondaryData = () => {
+        if (!primaryTableReady || !renderTable || !isCurrent()) return;
+        renderTable(otherEtaBySequence, otherStopCodesBySequence, Boolean(state.crossOperator));
+    };
+
+    const load = async () => {
+        const otherCompany = await loadOtherOperator();
+        if (!otherCompany || !isCurrent()) return;
+
+        state.crossOperator = true;
+        const operators = new Set((state.companies || state.company).split(',').map(value => value.trim()).filter(Boolean));
+        operators.add(state.company);
+        operators.add(otherCompany);
+        state.companies = [...operators].join(',');
+        renderSecondaryData();
+
+        fetchOtherOperatorEtas(route, state.company, direction, serviceType)
+            .then(etas => {
+                if (!isCurrent()) return;
+                otherEtaBySequence = etas;
+                renderSecondaryData();
+            })
+            .catch(error => console.warn(`Unable to load ${otherCompany} ETA for route ${route}:`, error));
+
+        fetchOtherOperatorStopCodes(route, state.company, direction, serviceType)
+            .then(stopCodes => {
+                if (!isCurrent()) return;
+                otherStopCodesBySequence = stopCodes;
+                renderSecondaryData();
+            })
+            .catch(error => console.warn(`Unable to load ${otherCompany} stop codes for route ${route}:`, error));
+    };
+
+    return {
+        setRenderer(tableRenderer) {
+            renderTable = tableRenderer;
+            primaryTableReady = true;
+            renderSecondaryData();
+        },
+        start() {
+            if (loadingStarted) return;
+            loadingStarted = true;
+            load().catch(error => console.warn(`Unable to detect co-operated operator for route ${route}:`, error));
+        }
+    };
+}
+
 async function loadRouteWindow(loadVariations = true, silent = false) {
     const overlay = document.querySelector('.route-eta-window-overlay');
     if (!overlay || !routeWindowState) return;
@@ -325,6 +401,7 @@ async function loadRouteWindow(loadVariations = true, silent = false) {
     const content = overlay.querySelector('.route-window-content');
     const directionButton = overlay.querySelector('.route-direction-button');
     const variationButton = overlay.querySelector('.route-variation-button');
+    state.crossOperator = false;
     title.innerHTML = state.routeInfo
         ? renderRouteTitle(route, state.routeInfo, state.company, state.companies, state.routeTitleReverse)
         : `${renderCompanyBadges(state.company, state.companies)}<span class="route-window-route${getRouteNumberClass(route, state.company)}">${formatRouteNumber(route)}</span>`;
@@ -334,17 +411,20 @@ async function loadRouteWindow(loadVariations = true, silent = false) {
     variationButton.className = `route-variation-button ${serviceType === 1 ? 'normal' : 'variation'}`;
     if (!silent) content.innerHTML = '<div class="route-window-loading">載入中...</div>';
 
-    if (isCrossOperatorRoute(route)) {
-        const otherCompany = await checkOtherOperatorRoute(route, state.company);
-        if (!routeWindowState || routeWindowState !== state || state.requestId !== requestId) return;
-        if (otherCompany) {
-            state.crossOperator = true;
-            const operators = new Set((state.companies || state.company).split(',').map(value => value.trim()).filter(Boolean));
-            operators.add(state.company);
-            operators.add(otherCompany);
-            state.companies = [...operators].join(',');
-        }
-    }
+    const otherRouteLoader = createOtherOperatorRouteLoader(
+        state,
+        requestId,
+        overlay,
+        route,
+        direction,
+        serviceType,
+        () => isCrossOperatorRoute(route)
+            ? checkOtherOperatorRoute(route, state.company).catch(error => {
+                console.warn(`Unable to detect co-operated operator for route ${route}:`, error);
+                return null;
+            })
+            : Promise.resolve(null)
+    );
 
     if (state.company === 'KMB') {
         try {
@@ -374,48 +454,42 @@ async function loadRouteWindow(loadVariations = true, silent = false) {
                 directionButton.style.opacity = '';
                 directionButton.disabled = false;
             }
-            const etaBySequence = new Map();
+            const primaryEtaBySequence = new Map();
             (routeEtas || []).filter(eta => eta.dir === direction && Number(eta.service_type) === serviceType && eta.eta)
                 .forEach(eta => {
                     eta._co = 'KMB';
                     const sequence = String(eta.seq);
-                    if (!etaBySequence.has(sequence)) etaBySequence.set(sequence, []);
-                    etaBySequence.get(sequence).push(eta);
+                    if (!primaryEtaBySequence.has(sequence)) primaryEtaBySequence.set(sequence, []);
+                    primaryEtaBySequence.get(sequence).push(eta);
                 });
-            const otherEtaBySequence = state.crossOperator
-                ? await fetchOtherOperatorEtas(route, state.company, direction, serviceType)
-                : new Map();
-            const otherStopCodesBySequence = state.crossOperator
-                ? await fetchOtherOperatorStopCodes(route, state.company, direction, serviceType)
-                : new Map();
-            otherEtaBySequence.forEach((etas, sequence) => {
-                if (!etaBySequence.has(sequence)) etaBySequence.set(sequence, []);
-                etaBySequence.get(sequence).push(...etas);
-            });
-            etaBySequence.forEach(etas => etas.sort((a, b) => new Date(a.eta) - new Date(b.eta)));
             const stopDetails = await Promise.all((routeStops || []).map(stop => fetchKmbStop(stop.stop).catch(() => null)));
             if (!routeWindowState || routeWindowState !== state || state.requestId !== requestId) return;
-            const rows = (routeStops || []).map((stop, index) => {
-                const detail = stopDetails[index];
-                const name = detail?.name_tc || detail?.name_en || stop.stop;
-                const configuredStopCode = getConfiguredStopCode(stop.stop);
-                const codeMatch = name.match(/\s*\(([A-Z]{1,4}\d{1,4}[A-Z]?)\)$/i);
-                let displayName = codeMatch ? name.slice(0, codeMatch.index).trim() : name;
-                const stopCode = codeMatch?.[1] || configuredStopCode || '';
-                const interchangeMatch = displayName.match(/^(.+?轉車站)\s*[-－–—]\s*(.+)$/);
-                const interchangeName = interchangeMatch?.[1] || '';
-                if (interchangeMatch) displayName = interchangeMatch[2].trim();
-                const otherStopCode = otherStopCodesBySequence.get(String(stop.seq));
-                const stopCodeHtml = stopCode || interchangeName || otherStopCode?.code
-                    ? `<span class="route-stop-code">${stopCode ? `<button class="route-stop-info-button" type="button" data-company="KMB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(displayName)}" data-stop-code="${escapeHtml(stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(displayName)}到站時間">${escapeHtml(stopCode)}</button>` : ''}${interchangeName ? `<span class="route-stop-interchange">${stopCode ? ' ' : ''}${escapeHtml(interchangeName)}</span>` : ''}${renderOtherRouteStopCode(otherStopCode, state.company, displayName)}</span>`
-                    : '';
-                const etas = (etaBySequence.get(String(stop.seq)) || []).slice(0, 3);
-                const etaHtml = etas.length
-                    ? etas.map(eta => renderRouteStopEta(eta, state.crossOperator)).join('')
-                    : '<span class="route-stop-no-eta">暫無班次</span>';
-                return `<tr><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name"><span class="route-stop-name-text">${escapeHtml(displayName)}</span>${stopCodeHtml}</td><td class="route-stop-times">${etaHtml}</td></tr>`;
-            }).join('');
-            content.innerHTML = `<table class="route-stop-table"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">未能取得站點資料。</td></tr>'}</tbody></table>`;
+            const renderKmbTable = (otherEtaBySequence = new Map(), otherStopCodesBySequence = new Map(), showOperatorBorder = false) => {
+                title.innerHTML = renderRouteTitle(route, state.routeInfo, state.company, state.companies);
+                const rows = (routeStops || []).map((stop, index) => {
+                    const detail = stopDetails[index];
+                    const name = detail?.name_tc || detail?.name_en || stop.stop;
+                    const configuredStopCode = getConfiguredStopCode(stop.stop);
+                    const codeMatch = name.match(/\s*\(([A-Z]{1,4}\d{1,4}[A-Z]?)\)$/i);
+                    let displayName = codeMatch ? name.slice(0, codeMatch.index).trim() : name;
+                    const stopCode = codeMatch?.[1] || configuredStopCode || '';
+                    const interchangeMatch = displayName.match(/^(.+?轉車站)\s*[-－–—]\s*(.+)$/);
+                    const interchangeName = interchangeMatch?.[1] || '';
+                    if (interchangeMatch) displayName = interchangeMatch[2].trim();
+                    const otherStopCode = otherStopCodesBySequence.get(String(stop.seq));
+                    const stopCodeHtml = stopCode || interchangeName || otherStopCode?.code
+                        ? `<span class="route-stop-code">${stopCode ? `<button class="route-stop-info-button" type="button" data-company="KMB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(displayName)}" data-stop-code="${escapeHtml(stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(displayName)}到站時間">${escapeHtml(stopCode)}</button>` : ''}${interchangeName ? `<span class="route-stop-interchange">${stopCode ? ' ' : ''}${escapeHtml(interchangeName)}</span>` : ''}${renderOtherRouteStopCode(otherStopCode, state.company, displayName)}</span>`
+                        : '';
+                    const etas = getRouteWindowEtas(primaryEtaBySequence, otherEtaBySequence, String(stop.seq));
+                    const etaHtml = etas.length
+                        ? etas.map(eta => renderRouteStopEta(eta, showOperatorBorder)).join('')
+                        : '<span class="route-stop-no-eta">暫無班次</span>';
+                    return `<tr data-stop-seq="${escapeHtml(stop.seq)}"><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name"><span class="route-stop-name-text">${escapeHtml(displayName)}</span>${stopCodeHtml}</td><td class="route-stop-times">${etaHtml}</td></tr>`;
+                }).join('');
+                content.innerHTML = `<table class="route-stop-table"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">未能取得站點資料。</td></tr>'}</tbody></table>`;
+            };
+            otherRouteLoader.setRenderer(renderKmbTable);
+            otherRouteLoader.start();
         } catch (error) {
             console.error('Unable to load route ETA window:', error);
             if (routeWindowState === state && state.requestId === requestId) content.innerHTML = '<div class="route-window-message">未能取得路線資料，請稍後再試。</div>';
@@ -444,29 +518,30 @@ async function loadRouteWindow(loadVariations = true, silent = false) {
                 Promise.all((routeStops || []).map(stop => fetchCtbJson(`${ROUTE_API.ctb.stop}/${encodeURIComponent(stop.stop)}`).catch(() => null))),
                 Promise.all((routeStops || []).map(stop => fetchCtbJson(`${ROUTE_API.ctb.eta}/${encodeURIComponent(stop.stop)}/${encodeURIComponent(route)}`).catch(() => [])))
             ]);
-            const otherEtaBySequence = state.crossOperator
-                ? await fetchOtherOperatorEtas(route, state.company, direction, 1)
-                : new Map();
-            const otherStopCodesBySequence = state.crossOperator
-                ? await fetchOtherOperatorStopCodes(route, state.company, direction, 1)
-                : new Map();
             if (!routeWindowState || routeWindowState !== state || state.requestId !== requestId) return;
-            const rows = (routeStops || []).map((stop, index) => {
-                const detail = stopDetails[index];
-                const name = detail?.name_tc || detail?.name_en || stop.stop;
+            const primaryEtaBySequence = new Map();
+            (routeStops || []).forEach((stop, index) => {
                 const ctbEtas = (stopEtas[index] || [])
                     .filter(eta => eta.dir === direction && eta.eta)
                     .sort((a, b) => new Date(a.eta) - new Date(b.eta))
                     .map(eta => ({ ...eta, _co: 'CTB' }));
-                const etas = ctbEtas.concat(otherEtaBySequence.get(String(stop.seq)) || [])
-                    .sort((a, b) => new Date(a.eta) - new Date(b.eta))
-                    .slice(0, 3);
-                const etaHtml = etas.length ? etas.map(eta => renderRouteStopEta(eta, state.crossOperator)).join('') : '<span class="route-stop-no-eta">暫無班次</span>';
-                const displayStopCode = formatStopCodeForDisplay('CTB', stop.stop);
-                const stopCodeHtml = `<span class="route-stop-code"><button class="route-stop-info-button" type="button" data-company="CTB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(name)}" data-stop-code="${escapeHtml(stop.stop)}" title="查看本站到站時間" aria-label="查看${escapeHtml(name)}到站時間">${escapeHtml(displayStopCode)}</button>${renderOtherRouteStopCode(otherStopCodesBySequence.get(String(stop.seq)), state.company, name)}</span>`;
-                return `<tr><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name"><span class="route-stop-name-text">${escapeHtml(name)}</span>${stopCodeHtml}</td><td class="route-stop-times">${etaHtml}</td></tr>`;
-            }).join('');
-            content.innerHTML = `<table class="route-stop-table"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">未能取得站點資料。</td></tr>'}</tbody></table>`;
+                primaryEtaBySequence.set(String(stop.seq), ctbEtas);
+            });
+            const renderCtbTable = (otherEtaBySequence = new Map(), otherStopCodesBySequence = new Map(), showOperatorBorder = false) => {
+                title.innerHTML = renderRouteTitle(route, state.routeInfo, state.company, state.companies, direction === 'I');
+                const rows = (routeStops || []).map((stop, index) => {
+                    const detail = stopDetails[index];
+                    const name = detail?.name_tc || detail?.name_en || stop.stop;
+                    const etas = getRouteWindowEtas(primaryEtaBySequence, otherEtaBySequence, String(stop.seq));
+                    const etaHtml = etas.length ? etas.map(eta => renderRouteStopEta(eta, showOperatorBorder)).join('') : '<span class="route-stop-no-eta">暫無班次</span>';
+                    const displayStopCode = formatStopCodeForDisplay('CTB', stop.stop);
+                    const stopCodeHtml = `<span class="route-stop-code"><button class="route-stop-info-button" type="button" data-company="CTB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(name)}" data-stop-code="${escapeHtml(stop.stop)}" title="查看本站到站時間" aria-label="查看${escapeHtml(name)}到站時間">${escapeHtml(displayStopCode)}</button>${renderOtherRouteStopCode(otherStopCodesBySequence.get(String(stop.seq)), state.company, name)}</span>`;
+                    return `<tr data-stop-seq="${escapeHtml(stop.seq)}"><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name"><span class="route-stop-name-text">${escapeHtml(name)}</span>${stopCodeHtml}</td><td class="route-stop-times">${etaHtml}</td></tr>`;
+                }).join('');
+                content.innerHTML = `<table class="route-stop-table"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">未能取得站點資料。</td></tr>'}</tbody></table>`;
+            };
+            otherRouteLoader.setRenderer(renderCtbTable);
+            otherRouteLoader.start();
         } catch (error) {
             console.error('Unable to load Citybus route ETA window:', error);
             if (routeWindowState === state && state.requestId === requestId) content.innerHTML = '<div class="route-window-message">未能取得路線資料，請稍後再試。</div>';

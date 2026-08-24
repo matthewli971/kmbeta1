@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kmbeta1-shell-v4';
+const CACHE_NAME = 'kmbeta1-shell-v5';
 const APP_SHELL = [
     './',
     './index.html',
@@ -16,7 +16,16 @@ const APP_SHELL = [
     './manifest.json',
     './manifest-stp.json',
     './manifest-mjh.json',
-    './logo_v2.svg'
+    './logo_v2.svg',
+    './font/arial.ttf',
+    './font/arialbd.ttf',
+    './font/arialbi.ttf',
+    './font/ariali.ttf',
+    './font/ARIALN.TTF',
+    './font/ARIALNB.TTF',
+    './font/ARIALNBI.TTF',
+    './font/ARIALNI.TTF',
+    './font/ariblk.ttf'
 ];
 
 self.addEventListener('install', event => {

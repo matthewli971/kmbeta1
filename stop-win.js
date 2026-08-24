@@ -72,6 +72,7 @@ async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB', si
         if (stopEtaWindowState !== state) return;
         const routes = new Map();
         (data || []).filter(eta => eta.eta).forEach(eta => {
+            eta._co = company;
             const key = isCtb ? `${eta.route}|${eta.dir}` : `${eta.route}|${eta.dir}|${eta.service_type}`;
             if (!routes.has(key)) routes.set(key, { route: eta.route, destination: eta.dest_tc || eta.dest_en || eta.dest || '', etas: [] });
             routes.get(key).etas.push(eta);
@@ -108,19 +109,23 @@ async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB', si
         const sortedDisplayItems = sortEtaGroupsByFirstArrival(displayItems);
 
         const rows = sortedDisplayItems.map(item => {
-            const routeClass = getRouteNumberClass(item.route, company);
-            const direction = item.etas[0]?.dir || 'O';
-            const serviceType = item.etas[0]?.service_type || 1;
+            const firstEta = item.etas
+                .filter(eta => eta.eta)
+                .sort((a, b) => new Date(a.eta) - new Date(b.eta))[0];
+            const routeCompany = firstEta?._co || company;
+            const routeClass = getRouteNumberClass(item.route, routeCompany);
+            const direction = firstEta?.dir || 'O';
+            const serviceType = firstEta?.service_type || 1;
             let routeTextClass = 'route-text stop-eta-route-code';
             if (item.route.length >= 4) {
                 routeTextClass += ' long-route-text';
             }
-            const routeEtaSupported = company === 'KMB' || company === 'CTB';
+            const routeEtaSupported = routeCompany === 'KMB' || routeCompany === 'CTB';
             const routeButtonState = routeEtaSupported ? '' : ' disabled';
             const routeButtonTitle = routeEtaSupported ? ' title="查看路線到站時間"' : '';
-            const routeCell = `<td class="route-no${routeClass} stop-eta-route"><button class="route-link ${routeTextClass}" type="button"${routeButtonState}${routeButtonTitle} data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(company)}" data-companies="${escapeHtml(company)}" data-direction="${escapeHtml(direction)}" data-service-type="${escapeHtml(serviceType)}" aria-label="查看${escapeHtml(item.route)}路線到站時間">${formatRouteNumber(item.route)}</button></td>`;
+            const routeCell = `<td class="route-no${routeClass} stop-eta-route"><button class="route-link ${routeTextClass}" type="button"${routeButtonState}${routeButtonTitle} data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(routeCompany)}" data-companies="${escapeHtml(company)}" data-direction="${escapeHtml(direction)}" data-service-type="${escapeHtml(serviceType)}" aria-label="查看${escapeHtml(item.route)}路線到站時間">${formatRouteNumber(item.route)}</button></td>`;
             const variationCircles = item.variationServiceTypes?.length > 1
-                ? item.variationServiceTypes.map(variation => `<button class="route-link stop-eta-variation ${Number(variation) === 1 ? 'normal' : 'variation'}" type="button" title="查看${escapeHtml(item.route)}路線變體 ${escapeHtml(variation)}" data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(company)}" data-companies="${escapeHtml(company)}" data-direction="${escapeHtml(direction)}" data-service-type="${escapeHtml(variation)}" aria-label="查看${escapeHtml(item.route)}路線變體 ${escapeHtml(variation)}">${escapeHtml(variation)}</button>`).join('')
+                ? item.variationServiceTypes.map(variation => `<button class="route-link stop-eta-variation ${Number(variation) === 1 ? 'normal' : 'variation'}" type="button" title="查看${escapeHtml(item.route)}路線變體 ${escapeHtml(variation)}" data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(routeCompany)}" data-companies="${escapeHtml(company)}" data-direction="${escapeHtml(direction)}" data-service-type="${escapeHtml(variation)}" aria-label="查看${escapeHtml(item.route)}路線變體 ${escapeHtml(variation)}">${escapeHtml(variation)}</button>`).join('')
                 : '';
             const destinationCell = `<td class="stop-eta-destination"><span class="stop-eta-destination-content"><span class="stop-eta-destination-name">${escapeHtml(item.destination)}</span>${variationCircles}</span></td>`;
             const timesCell = `<td class="stop-eta-times">${item.etas.slice(0, 3).map(renderStopEtaItem).join('')}</td>`;
@@ -138,15 +143,5 @@ document.addEventListener('click', event => {
     const button = event.target.closest('.route-stop-info-button');
     if (!button) return;
     event.stopPropagation();
-    if (button.dataset.route) {
-        openRouteWindow(
-            button.dataset.route,
-            button.dataset.company || 'KMB',
-            button.dataset.direction || 'O',
-            button.dataset.serviceType || 1,
-            button.dataset.companies || button.dataset.company || 'KMB'
-        );
-        return;
-    }
     openStopEtaWindow(button.dataset.stopId, button.dataset.stopName, button.dataset.stopCode, button.dataset.company || 'KMB');
 });
