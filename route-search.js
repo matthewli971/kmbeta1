@@ -1,5 +1,4 @@
 // ===== Route Search =====
-const ROUTE_SEARCH_CACHE_KEY = 'kmbeta-route-search-v3';
 let routeSearchRoutes = null;
 let routeSearchLoadPromise = null;
 let routeSearchLastUpdated = null;
@@ -7,7 +6,7 @@ let routeSearchLoadedRefreshKey = null;
 
 function getRouteSearchRefreshKey(date = new Date()) {
     const parts = new Intl.DateTimeFormat('en-CA', {
-        timeZone: HONG_KONG_TIME_ZONE,
+        timeZone: APP_CONFIG.timeZone,
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -53,7 +52,7 @@ function groupRouteSearchRecords(records) {
 
 function getCachedRouteSearchRoutes() {
     try {
-        const cached = JSON.parse(localStorage.getItem(ROUTE_SEARCH_CACHE_KEY) || 'null');
+        const cached = JSON.parse(localStorage.getItem(APP_CONFIG.routeSearchCacheKey) || 'null');
         if (cached?.refreshKey !== getRouteSearchRefreshKey() || !Array.isArray(cached.routes)) return null;
         routeSearchLastUpdated = cached.updatedAt || null;
             routeSearchLoadedRefreshKey = cached.refreshKey;
@@ -67,7 +66,7 @@ function getCachedRouteSearchRoutes() {
 function cacheRouteSearchRoutes(routes) {
     try {
         routeSearchLastUpdated = new Date().toISOString();
-        localStorage.setItem(ROUTE_SEARCH_CACHE_KEY, JSON.stringify({
+        localStorage.setItem(APP_CONFIG.routeSearchCacheKey, JSON.stringify({
             refreshKey: getRouteSearchRefreshKey(),
             updatedAt: routeSearchLastUpdated,
             routes

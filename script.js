@@ -1,14 +1,9 @@
-// ===== App Version =====
-const APP_VERSION = "v0.52";
-const HONG_KONG_TIME_ZONE = 'Asia/Hong_Kong';
-const COUNTDOWN_TARGET_DATE = '2026-09-16';
-
 // ===== Runtime State =====
 const STOP_CACHE = {};
 
 // Apply page title from config
 document.getElementById('app-title').textContent = APP_TITLE;
-document.getElementById('app-version').textContent = APP_VERSION;
+document.getElementById('app-version').textContent = APP_CONFIG.version;
 document.title = APP_TITLE;
 
 function applyDestReplacement(dest) {
@@ -35,7 +30,7 @@ function formatStopCodeForDisplay(company, stopCode) {
 function updateClock() {
     const now = new Date();
     const timeStr = now.toLocaleTimeString('en-GB', {
-        timeZone: HONG_KONG_TIME_ZONE,
+        timeZone: APP_CONFIG.timeZone,
         hour12: true
     }).toUpperCase();
     document.getElementById('clock').innerHTML = `${timeStr}`;
@@ -46,7 +41,7 @@ function updateDayCountdown() {
     if (!countdown) return;
 
     const parts = new Intl.DateTimeFormat('en-CA', {
-        timeZone: HONG_KONG_TIME_ZONE,
+        timeZone: APP_CONFIG.timeZone,
         year: 'numeric',
         month: '2-digit',
         day: '2-digit'
@@ -61,7 +56,7 @@ function updateDayCountdown() {
         Number(values.month) - 1,
         Number(values.day)
     );
-    const targetUtc = Date.parse(`${COUNTDOWN_TARGET_DATE}T00:00:00Z`);
+    const targetUtc = Date.parse(`${APP_CONFIG.countdownTargetDate}T00:00:00Z`);
     const daysUntil = Math.ceil((targetUtc - todayUtc) / (24 * 60 * 60 * 1000));
 
     if (daysUntil <= 0) {
@@ -106,7 +101,7 @@ async function refreshHomepage() {
 
 function getActivePriorityConfig() {
     const timeParts = new Intl.DateTimeFormat('en-GB', {
-        timeZone: HONG_KONG_TIME_ZONE,
+        timeZone: APP_CONFIG.timeZone,
         hour: '2-digit',
         minute: '2-digit',
         hourCycle: 'h23'
@@ -422,6 +417,39 @@ async function processStopGroup(stopGroup) {
                     etas: groupEtas
                 };
             });
+            /*
+        } else if (stop.type === 'NLB') {
+            const routeId = stop.routeId ?? stop.route;
+            const etas = (await fetchNlbStopETA(routeId, stop.id)).filter(eta => eta.eta);
+            const route = stop.routeNo || stop.route || String(routeId);
+            etas.forEach(eta => {
+                eta.route = route;
+                eta._co = 'NLB';
+            });
+            return [{
+                company: 'NLB',
+                route,
+                dir: etas[0]?.dir || 'O',
+                stopId: stop.id,
+                stopCode: stop.code,
+                stopLabel: stop.label,
+                dest: applyDestReplacement(etas[0]?.dest_tc || ''),
+                etas
+            }];
+        } else if (stop.type === 'MTRB') {
+            const routeName = stop.routeName || stop.route || stop.routeId;
+            const etas = await fetchMtrStopETA(routeName, stop.id);
+            etas.forEach(eta => { eta._co = 'MTRB'; });
+            return [{
+                company: 'MTRB',
+                route: routeName,
+                dir: 'O',
+                stopId: stop.id,
+                stopCode: stop.code,
+                stopLabel: stop.label,
+                dest: routeName,
+                etas
+            }];*/
         } else if (stop.type === 'GMB') {
             const etas = await fetchGMBStopETA(stop.routeId, stop.id);
             const cacheKey = `GMB_${stop.routeId}_${stop.id}`;
@@ -688,10 +716,10 @@ async function processStopGroup(stopGroup) {
 
                 // Handle remarks
                 if (item.rmk_tc === '原定班次' || item.rmk_tc === '未開出') {
-                    remarkTag = '[預定]';
+                    remarkTag = '預定';
                     minClass = 'text-grey';
                 } else if (item.rmk_tc === '最後班次') {
-                    remarkTag = '[尾班]';
+                    remarkTag = '尾班';
                 } else if (item.rmk_tc) {
                     const cleanedRmk = cleanRemark(item.rmk_tc);
                     if (index === 0) {

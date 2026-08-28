@@ -3,11 +3,7 @@
 (function bootstrapLocationPage() {
     const bootstrapScript = document.currentScript;
     const locationId = bootstrapScript.dataset.location || 'stp';
-    const locations = {
-        stp: { config: 'config/stp.js' },
-        mjh: { config: 'config/mjh.js' }
-    };
-    const location = locations[locationId] || locations.stp;
+    let location = null;
 
     function renderSharedShell() {
         if (document.getElementById('app-title')) return;
@@ -83,9 +79,10 @@
         try {
             renderSharedShell();
             await loadScript('pwa.js');
-            await loadScript('settings.js');
             await loadScript('data.js');
+            location = window.LOCATION_CONFIG[locationId] || window.LOCATION_CONFIG.stp;
             await loadScript(location.config);
+            await loadScript('settings.js');
             await loadScript('stop-eta.js');
             await loadScript('eta.js');
             await loadScript('route-search.js');

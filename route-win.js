@@ -49,6 +49,15 @@ function renderOtherRouteStopCode(stop, primaryCompany, stopName) {
     return ` ${infoButton}`;
 }
 
+function formatCtbRouteStopName(name) {
+    const stopName = String(name || '');
+    if (window.getShowCtbStopStreetName?.()) return stopName;
+    const separatorIndex = stopName.lastIndexOf(', ');
+    return separatorIndex >= 0 && stopName.slice(separatorIndex + 2).trim()
+        ? stopName.slice(0, separatorIndex).trimEnd()
+        : stopName;
+}
+
 function hasRouteInfo(routeInfo) {
     if (!routeInfo) return false;
     if (Array.isArray(routeInfo)) return routeInfo.length > 0;
@@ -246,19 +255,35 @@ function renderCompanyBadges(company, companies) {
         .join('');
 }
 
+function extractViaPoints(placeName) {
+    const viaPoints = [];
+    const name = String(placeName || '').replace(/[（(]\s*經\s*([^()（）]*?)[）)]/g, (match, viaPoint) => {
+        const point = viaPoint.trim().replace(/\s+/g, ' ');
+        if (point) viaPoints.push(point);
+        return '';
+    }).replace(/\s{2,}/g, ' ').trim();
+    return { name, viaPoints };
+}
+
 function renderRouteTitle(route, routeInfo, company, companies, reverseJourney = false) {
     const routeClass = getRouteNumberClass(route, company);
     const routeLabel = `${renderCompanyBadges(company, companies)}<span class="route-window-route${routeClass}">${formatRouteNumber(route)}</span>`;
     if (!routeInfo?.orig_tc || !routeInfo?.dest_tc) return routeLabel;
-    const origin = (reverseJourney ? routeInfo.dest_tc : routeInfo.orig_tc).trim();
-    let destination = (reverseJourney ? routeInfo.orig_tc : routeInfo.dest_tc).trim();
+    const originInfo = extractViaPoints(reverseJourney ? routeInfo.dest_tc : routeInfo.orig_tc);
+    const destinationInfo = extractViaPoints(reverseJourney ? routeInfo.orig_tc : routeInfo.dest_tc);
+    const origin = originInfo.name;
+    let destination = destinationInfo.name;
     let loopBadge = '';
     if (destination.includes('(循環線)')) {
         destination = destination.replace('(循環線)', '').trim();
         loopBadge = `<span class="route-loop-badge">循環線</span>`;
     }
     const arrow = '→';
-    return `${routeLabel}<span class="route-window-journey">${escapeHtml(origin)} ${arrow} ${escapeHtml(destination)} ${loopBadge}</span>`;
+    const viaPoints = [...originInfo.viaPoints, ...destinationInfo.viaPoints];
+    const viaRemark = viaPoints.length
+        ? `<span class="route-window-via-remark">經: ${escapeHtml(viaPoints.join(' '))}</span>`
+        : '';
+    return `${routeLabel}<span class="route-window-journey-group"><span class="route-window-journey">${escapeHtml(origin)} ${arrow} ${escapeHtml(destination)} ${loopBadge}</span>${viaRemark}</span>`;
 }
 
 async function hasBothDirections(route) {
@@ -296,7 +321,7 @@ function renderRouteStopEta(eta, showOperatorBorder = false) {
         minClass = 'text-light-green';
     }
 
-    const remarkTag = isScheduled ? '[預定]' : eta.rmk_tc === '最後班次' ? '[尾班]' : '';
+    const remarkTag = isScheduled ? '預定' : eta.rmk_tc === '最後班次' ? '尾班' : '';
     const tagClass = isArriving ? 'text-black' : !hasEta || isScheduled || diffMins >= 30 ? 'text-grey' : 'text-white bold';
     const borderClass = showOperatorBorder && eta._co === 'KMB'
         ? ' eta-border-kmb'
@@ -532,11 +557,12 @@ async function loadRouteWindow(loadVariations = true, silent = false) {
                 const rows = (routeStops || []).map((stop, index) => {
                     const detail = stopDetails[index];
                     const name = detail?.name_tc || detail?.name_en || stop.stop;
+                    const displayName = formatCtbRouteStopName(name);
                     const etas = getRouteWindowEtas(primaryEtaBySequence, otherEtaBySequence, String(stop.seq));
                     const etaHtml = etas.length ? etas.map(eta => renderRouteStopEta(eta, showOperatorBorder)).join('') : '<span class="route-stop-no-eta">暫無班次</span>';
                     const displayStopCode = formatStopCodeForDisplay('CTB', stop.stop);
-                    const stopCodeHtml = `<span class="route-stop-code"><button class="route-stop-info-button" type="button" data-company="CTB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(name)}" data-stop-code="${escapeHtml(stop.stop)}" title="查看本站到站時間" aria-label="查看${escapeHtml(name)}到站時間">${escapeHtml(displayStopCode)}</button>${renderOtherRouteStopCode(otherStopCodesBySequence.get(String(stop.seq)), state.company, name)}</span>`;
-                    return `<tr data-stop-seq="${escapeHtml(stop.seq)}"><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name"><span class="route-stop-name-text">${escapeHtml(name)}</span>${stopCodeHtml}</td><td class="route-stop-times">${etaHtml}</td></tr>`;
+                    const stopCodeHtml = `<span class="route-stop-code"><button class="route-stop-info-button" type="button" data-company="CTB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(displayName)}" data-stop-code="${escapeHtml(stop.stop)}" title="查看本站到站時間" aria-label="查看${escapeHtml(displayName)}到站時間">${escapeHtml(displayStopCode)}</button>${renderOtherRouteStopCode(otherStopCodesBySequence.get(String(stop.seq)), state.company, displayName)}</span>`;
+                    return `<tr data-stop-seq="${escapeHtml(stop.seq)}"><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name"><span class="route-stop-name-text">${escapeHtml(displayName)}</span>${stopCodeHtml}</td><td class="route-stop-times">${etaHtml}</td></tr>`;
                 }).join('');
                 content.innerHTML = `<table class="route-stop-table"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">未能取得站點資料。</td></tr>'}</tbody></table>`;
             };
@@ -550,3 +576,7 @@ async function loadRouteWindow(loadVariations = true, silent = false) {
         content.innerHTML = '';
     }
 }
+
+window.addEventListener('ctb-stop-street-name-setting-changed', () => {
+    if (routeWindowState?.company === 'CTB') loadRouteWindow(false, true);
+});

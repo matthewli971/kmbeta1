@@ -6,7 +6,35 @@
     const closeButton = document.getElementById('settings-close');
     if (!panel || !overlay || !openButton) return;
 
-    const routeSearchCacheKey = 'kmbeta-route-search-v3';
+    function getShowCtbStopStreetName() {
+        try {
+            return localStorage.getItem(APP_CONFIG.showCtbStopStreetNameKey) === 'true';
+        } catch {
+            return false;
+        }
+    }
+
+    window.getShowCtbStopStreetName = getShowCtbStopStreetName;
+
+    const streetNameRow = document.createElement('div');
+    streetNameRow.className = 'settings-item';
+    streetNameRow.innerHTML = `
+        <div class="settings-item-copy"><div class="settings-item-title">顯示巴士站所屬街道</div></div>
+        <label class="settings-switch" title="顯示巴士站所屬街道">
+            <input type="checkbox" aria-label="顯示巴士站所屬街道"${getShowCtbStopStreetName() ? ' checked' : ''}>
+            <span class="settings-switch-track" aria-hidden="true"></span>
+        </label>`;
+    const streetNameToggle = streetNameRow.querySelector('input');
+    streetNameToggle.addEventListener('change', () => {
+        try {
+            localStorage.setItem(APP_CONFIG.showCtbStopStreetNameKey, String(streetNameToggle.checked));
+        } catch (error) {
+            console.warn('Unable to save Citybus street-name preference:', error);
+        }
+        window.dispatchEvent(new Event('ctb-stop-street-name-setting-changed'));
+    });
+    panel.querySelector('.settings-body')?.appendChild(streetNameRow);
+
     const databaseUpdatedText = document.createElement('span');
     databaseUpdatedText.className = 'settings-item-subtext';
 
@@ -28,7 +56,7 @@
             if (runtimeTimestamp) return runtimeTimestamp;
         }
         try {
-            return JSON.parse(localStorage.getItem(routeSearchCacheKey) || 'null')?.updatedAt || null;
+            return JSON.parse(localStorage.getItem(APP_CONFIG.routeSearchCacheKey) || 'null')?.updatedAt || null;
         } catch {
             return null;
         }
@@ -42,7 +70,7 @@
         }
         const date = new Date(updatedAt);
         const parts = new Intl.DateTimeFormat('en-GB', {
-            timeZone: 'Asia/Hong_Kong',
+            timeZone: APP_CONFIG.timeZone,
             day: '2-digit', month: '2-digit', year: 'numeric',
             hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
         }).formatToParts(date);

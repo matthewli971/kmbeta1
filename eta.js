@@ -4,6 +4,14 @@ const APP_API = window.API_ENDPOINTS;
 const CORS_PROXIES = APP_API.gmb.proxyTemplates.map(template => url => template
     .replace('{url}', encodeURIComponent(url))
     .replace('{rawUrl}', url));
+const MTR_ROUTE_CACHE = new Map();
+
+function fillApiTemplate(template, values) {
+    return Object.entries(values).reduce(
+        (url, [key, value]) => url.replace(`{${key}}`, encodeURIComponent(value ?? '')),
+        template
+    );
+}
 
 async function fetchKmbStopETA(stopId) {
     try {
@@ -25,6 +33,93 @@ async function fetchCtbStopETA(stopId) {
         return data.data || [];
     } catch (error) {
         console.error(`Error fetching Citybus ETA for ${stopId}:`, error);
+        return [];
+    }
+}
+/*
+async function fetchNlbStopETA(routeId, stopId) {
+    if (routeId === null || routeId === undefined || stopId === null || stopId === undefined) return [];
+    try {
+        const url = fillApiTemplate(APP_API.nlb.stopEta, {
+            routeId,
+            stopId,
+            languageCode: APP_CONFIG.apiLanguage
+        });
+        const response = await fetch(`${url}&t=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error('NLB API request failed');
+        const result = await response.json();
+        return (result.estimatedArrivals || []).map((item, index) => ({
+            co: 'NLB',
+            route: String(item.route || routeId),
+            dir: item.dir || 'O',
+            seq: item.seq ?? stopId,
+            eta_seq: index + 1,
+            eta: item.estimatedArrivalTime || null,
+            dest_tc: item.routeVariantName || '',
+            dest_en: item.routeVariantName || '',
+            rmk_tc: item.rmk || '',
+            rmk_en: item.rmk || '',
+            data_timestamp: item.generateTime || null,
+            departed: item.departed,
+            noGPS: item.noGPS,
+            wheelChair: item.wheelChair
+        }));
+    } catch (error) {
+        console.error(`Error fetching NLB ETA for route ${routeId}, stop ${stopId}:`, error);
+        return [];
+    }
+}
+
+async function fetchMtrRouteSchedule(routeName) {
+    if (!routeName) return null;
+    const cached = MTR_ROUTE_CACHE.get(routeName);
+    if (cached && Date.now() - cached.fetchedAt < APP_CONFIG.mtrScheduleCacheTtlMs) {
+        return cached.promise;
+    }
+
+    {
+        const promise = fetch(APP_API.mtrb.schedule, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ language: APP_CONFIG.apiLanguage, routeName }),
+            cache: 'no-store'
+        }).then(response => {
+            if (!response.ok) throw new Error(`MTR Bus API request failed (${response.status})`);
+            return response.json();
+        }).catch(error => {
+            MTR_ROUTE_CACHE.delete(routeName);
+            throw error;
+        });
+        MTR_ROUTE_CACHE.set(routeName, { promise, fetchedAt: Date.now() });
+        return promise;
+    }
+}
+*/
+async function fetchMtrStopETA(routeName, stopId) {
+    try {
+        const result = await fetchMtrRouteSchedule(routeName);
+        const stop = (result?.busStop || []).find(item => String(item.busStopId) === String(stopId));
+        if (String(stop?.isSuspended) === '1') return [];
+        return (stop?.bus || []).map((item, index) => {
+            const seconds = Number(item.arrivalTimeInSecond);
+            const hasEta = Number.isFinite(seconds) && seconds >= 0 && seconds < 108000;
+            return {
+                co: 'MTRB',
+                route: routeName,
+                dir: 'O',
+                seq: stopId,
+                eta_seq: index + 1,
+                eta: hasEta ? new Date(Date.now() + seconds * 1000).toISOString() : null,
+                dest_tc: routeName,
+                dest_en: routeName,
+                rmk_tc: item.busRemark || item.arrivalTimeText || '',
+                rmk_en: item.busRemark || item.arrivalTimeText || '',
+                data_timestamp: result?.routeStatusTime || null,
+                isScheduled: item.isScheduled
+            };
+        }).filter(item => item.eta);
+    } catch (error) {
+        console.error(`Error fetching MTR Bus ETA for ${routeName}, stop ${stopId}:`, error);
         return [];
     }
 }

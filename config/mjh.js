@@ -1,6 +1,5 @@
 // ===== Page Configuration =====
 const APP_TITLE = "油塘居民安心出門/歸家關注組";
-const KMB_STOP_URL = window.API_ENDPOINTS.kmb.stop;
 
 // ===== Stop Definitions =====
 const STOPS = [

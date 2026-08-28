@@ -115,19 +115,22 @@
     --font-stop-code: 0.75rem;
     --font-stop-label: 0.9rem;
     --font-destination-remark: 0.7rem;
-    --font-eta-time: 1.1em;
+    --font-eta-time: 1.45rem;
     --font-win-eta-time: 0.65rem;
-    --font-arriving: 0.9em;
     --font-eta-exact: 1em;
     --font-eta-min: 0.6em;
     --font-eta-remark: 0.6em;
-    --font-eta-large: 1em;
+    --font-eta-large: 1.1rem;
     --font-eta-small: 0.5em;
     --font-eta-small-seconds: 0.8em;
     --font-time-exact: 1.2em;
     --font-eta-tag-small: 0.5rem;
     --font-time-seconds: 0.5em;
     --font-route-stop-name: 1.2rem;
+
+    --eta-item-width: 70px;
+    --stop-eta-item-width: 72px;
+    --stop-eta-column-count: 2;
     
     --page-margin: 5px;
 }
@@ -238,10 +241,6 @@ body {
     align-items: center;
     justify-content: center;
     transition: background-color 0.2s;
-}
-
-#btn-pwa-install.hidden {
-    display: none !important;
 }
 
 #btn-pwa-install:hover {
@@ -532,6 +531,45 @@ body {
     height: 14px;
 }
 
+.settings-switch {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+    width: 44px;
+    height: 24px;
+    cursor: pointer;
+}
+
+.settings-switch input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.settings-switch-track {
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    background: #666;
+    transition: background-color 0.2s ease;
+}
+
+.settings-switch-track::after {
+    display: block;
+    width: 18px;
+    height: 18px;
+    margin: 3px;
+    border-radius: 50%;
+    background: #fff;
+    content: '';
+    transition: transform 0.2s ease;
+}
+
+.settings-switch input:checked + .settings-switch-track { background: var(--color-green); }
+.settings-switch input:checked + .settings-switch-track::after { transform: translateX(20px); }
+.settings-switch input:focus-visible + .settings-switch-track { outline: 2px solid #fff; outline-offset: 2px; }
+
 #monitor-content {
     padding: var(--page-margin);
 }
@@ -717,7 +755,7 @@ body {
     flex-direction: column;
     align-items: center;
     width: 84px;
-    padding: 3px;
+    padding: 2px;
     border-radius: 5px;
     box-sizing: border-box;
 }
@@ -743,7 +781,10 @@ body {
 
 .eta-remark-tag-small {
     font-size: var(--font-eta-tag-small);
-    vertical-align: top;
+    font-weight: bold;
+    vertical-align: middle;
+    line-height: 1;
+    white-space: nowrap;
 }
     
 .time-text-b {
@@ -752,7 +793,7 @@ body {
 }
 
 .arriving-text {
-    font-size: var(--font-arriving);
+    font-size: calc(var(--font-eta-time) * 0.8);
 }
 
 .bold {
@@ -853,6 +894,20 @@ body {
 .route-window-route.route-ctb-airport { color: var(--color-ctb-airport); }
 .route-lwb-airport { color: var(--color-orange); }
 .route-window-journey { margin-left: 12px; color: var(--color-text); font-size: 1.4rem; white-space: nowrap; }
+.route-window-journey-group {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    margin-left: 12px;
+}
+.route-window .route-window-journey-group .route-window-journey { margin-left: 0; }
+.route-window-via-remark {
+    color: var(--color-eta-remark);
+    font-size: 0.8em;
+    font-weight: normal;
+    line-height: 1.2;
+    white-space: nowrap;
+}
 
 /* Circular route badge in the route window journey */
 .route-loop-badge {
@@ -885,7 +940,7 @@ body {
     border-radius: 4px;
     background: #5cb85c;
     color: #fff;
-    font-size: 1.5rem;
+    font-size: 1.2rem;
 }
 
 .route-window-refresh:hover { background: #4cae4c; }
@@ -906,7 +961,7 @@ body {
     min-width: 42px;
     height: 28px;
     padding: 0 8px;
-    font-size: 0.9rem;
+    font-size: 1.1rem;
 }
 
 .route-direction-button {
@@ -1036,7 +1091,7 @@ body {
     display: flex;
     flex-direction: row;
     align-items: baseline;
-    gap: 8px;
+    gap: 4px;
     color: var(--color-text);
     font-size: var(--font-route-stop-name);
     font-weight: bold;
@@ -1069,13 +1124,37 @@ body {
 .stop-eta-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .stop-eta-table tr + tr { border-top: 1px solid #292929; }
 .stop-eta-table td { padding: 4px 4px; vertical-align: middle; }
-.stop-eta-table td.route-no { width: 15%; }
+.stop-eta-table td.route-no { width: 18%; }
 .stop-eta-route { width: 15%; font-size: var(--font-route); font-weight: bold; }
 .stop-eta-route .route-suffix { font-size: 0.75em; }
-.stop-eta-times { width: 240px; max-width: 240px; text-align: left; white-space: nowrap; overflow: hidden; }
-.stop-eta-destination { overflow: hidden; color: var(--color-text); font-size: var(--font-route-stop-name); font-weight: bold; }
-.stop-eta-destination-content { display: flex; align-items: center; min-width: 0; gap: 6px; }
-.stop-eta-destination-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stop-eta-times { 
+    width: calc(var(--stop-eta-item-width) * var(--stop-eta-column-count)); 
+    max-width: calc(var(--stop-eta-item-width) * var(--stop-eta-column-count) + 10px); 
+    text-align: left; 
+    white-space: nowrap; 
+    overflow: hidden; 
+}
+
+.stop-eta-destination { 
+    overflow: hidden; 
+    color: var(--color-text); 
+    font-size: var(--font-route-stop-name); 
+    font-weight: bold; 
+}
+
+.stop-eta-destination-content { 
+    display: flex; 
+    align-items: center; 
+    min-width: 0; 
+    gap: 6px; 
+
+}
+.stop-eta-destination-name { 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    white-space: nowrap; 
+
+}
 .stop-eta-variation {
     display: inline-grid;
     flex: 0 0 auto;
@@ -1096,32 +1175,14 @@ body {
 .stop-eta-variation.variation { background: #000; color: #fff; }
 .stop-eta-times .eta-item {
     display: inline-flex;
-    flex: 0 0 72px;
-    width: 72px;
-    min-width: 56px;
+    flex: 0 0 var(--stop-eta-item-width);
+    width: var(--stop-eta-item-width);
+    min-width: var(--stop-eta-item-width);
     vertical-align: middle;
     box-sizing: border-box;
     padding: 2px 4px;
 }
 .stop-eta-table td.stop-eta-destination { width: auto; }
-.stop-eta-table td.stop-eta-times { width: 220px; }
-
-/* stronger selector to override table layout constraints when shown inside the route window */
-.route-window .stop-eta-times {
-    width: 270px !important;
-    min-width: 140px !important;
-}
-.route-window .stop-eta-table.stop-eta-columns-1 .stop-eta-times {
-    width: 80px !important;
-    min-width: 80px !important;
-}
-.route-window .stop-eta-table.stop-eta-columns-2 .stop-eta-times {
-    width: 160px !important;
-    min-width: 160px !important;
-}
-.route-window .stop-eta-times .eta-item {
-    width: 80px !important;
-}
 .stop-eta-times .eta-large,
 .stop-eta-times .eta-small { white-space: nowrap; }
 .stop-eta-times .eta-remark-tag { font-size: var(--font-win-eta-time); }
@@ -1175,13 +1236,6 @@ body {
 
 .long-route-text { font-family: 'Arial Narrow', 'Arial', sans-serif; }
 
-.dest-sub-info {
-    display: block; 
-    min-height: 1.4rem;
-    margin-top: -5px; 
-    margin-left: -8px; 
-}
-
 .stop-info {
     display: inline-block;
     min-height: var(--font-destination);
@@ -1191,8 +1245,11 @@ body {
 .eta-table td.dest .dest-sub-info {
     display: flex;
     align-items: center;
+    min-height: 1.4rem;
     min-width: 0;
     max-width: 100%;
+    margin-top: -5px; 
+    margin-left: -8px; 
     overflow: hidden;
 }
 
@@ -1326,7 +1383,6 @@ input:checked + .slider:before {
     border-radius: 50%;
 }
 
-/* Mode B Styles */
 .eta-large {
     font-size: var(--font-eta-large);
     font-weight: bold;
@@ -1350,11 +1406,6 @@ input:checked + .slider:before {
 .eta-item-last { display: none; }
 .stop-eta-window .stop-eta-times .eta-item:nth-child(n + 3) { display: none; }
 .stop-eta-window td.stop-eta-destination { width: auto; }
-.route-window.stop-eta-window .stop-eta-times {
-    width: 140px !important;
-    min-width: 140px !important;
-    text-align: left;
-}
 .route-window-title {
     width: 100%;
     gap: 6px;
@@ -1377,7 +1428,7 @@ input:checked + .slider:before {
 }
 
 .eta-table .eta-item {
-    width: 70px;
+    width: var(--eta-item-width);
 }
 
 .dest-text {
@@ -1419,6 +1470,10 @@ input:checked + .slider:before {
     text-overflow: ellipsis;
 }
 
+.route-window-journey-group {
+    margin-left: 6px;
+}
+
 .route-window-refresh {
     min-width: 42px;
 }
@@ -1442,16 +1497,12 @@ input:checked + .slider:before {
 }
 
 .route-stop-times .eta-item {
-    width: 70px;
+    width: var(--eta-item-width);
     padding: 2px;
 }
 
 .route-stop-no-eta {
     width: 65px;
-}
-
-.dest-sub-info {
-    margin-top: -5px;
 }
 
 .route-window .stop-eta-route {
@@ -1466,27 +1517,6 @@ input:checked + .slider:before {
 
 .route-window .stop-eta-destination {
     font-size: var(--font-destination);
-}
-
-.route-window .stop-eta-times {
-    width: 210px !important;
-    min-width: 210px !important;
-}
-
-.route-window .stop-eta-table.stop-eta-columns-1 .stop-eta-times {
-    width: 70px !important;
-    min-width: 70px !important;
-}
-
-.route-window .stop-eta-table.stop-eta-columns-2 .stop-eta-times {
-    width: 140px !important;
-    min-width: 140px !important;
-}
-
-.route-window .stop-eta-times .eta-item {
-    width: 70px !important;
-    min-width: 70px;
-    padding: 2px;
 }
 
 .rmk {
@@ -1512,10 +1542,6 @@ th.route-no {
 .stop-title {
     padding-left: 5px;
 }
-/*
-.eta-item {
-    width: 80px;
-}*/
 
 .eta-large,
 .eta-small {
@@ -1528,15 +1554,13 @@ th.route-no {
         --font-clock: 32px;
         --font-refresh: 22px;
         --font-button: 1.2em;
+        --stop-eta-column-count: 3;
     }
 
     .eta-item-last { display: flex; }
     .stop-eta-window .stop-eta-times .eta-item:nth-child(n + 3) { display: inline-flex; }
-    .route-window.stop-eta-window .stop-eta-times {
-        width: 210px !important;
-        min-width: 210px !important;
-    }
     .stop-eta-window .route-window-actions { top: 4px; right: 50px; }
+    .stop-eta-table td.route-no { width: 15%; }
 }
 
 @media (min-width: 600px) {
@@ -1553,7 +1577,8 @@ th.route-no {
         padding: 4px 12px;
     }
 
-    /*.eta-table */.eta-item {
+    .eta-item,
+    .eta-table .eta-item {
         width: 80px;
     }
 
@@ -1624,6 +1649,10 @@ th.route-no {
         text-overflow: clip;
     }
 
+    .route-window-journey-group {
+        margin-left: 12px;
+    }
+
     .route-window-refresh {
         min-width: 54px;
     }
@@ -1655,33 +1684,9 @@ th.route-no {
 
     .route-window .stop-eta-route {
         min-width: 0 !important;
-        font-size: var(--font-route-route);
+        font-size: 2.2rem;
     }
 
-    .route-window .stop-eta-times {
-        width: 270px !important;
-        min-width: 140px !important;
-    }
-
-    .route-window.stop-eta-window .stop-eta-times {
-        width: 270px !important;
-        min-width: 140px !important;
-    }
-
-    .route-window .stop-eta-table.stop-eta-columns-1 .stop-eta-times {
-        width: 80px !important;
-        min-width: 80px !important;
-    }
-
-    .route-window .stop-eta-table.stop-eta-columns-2 .stop-eta-times {
-        width: 160px !important;
-        min-width: 160px !important;
-    }
-
-    .route-window .stop-eta-times .eta-item {
-        width: 80px !important;
-        min-width: 56px;
-    }
 }
 
 @media (min-width: 700px) {
@@ -1693,17 +1698,20 @@ th.route-no {
         --font-destination-remark: 0.9rem;
         --font-stop-code: 1rem;
         --font-eta-tag-small: 0.6rem;
-        --font-eta-large: 1.1em;
+        --font-eta-time: 1.7rem;
+        --font-eta-large: 1.1rem;
         --font-eta-small: 0.6em;
         --font-eta-exact: 1.1em;
         --page-margin: 20px;
+
+        --stop-eta-item-width: 80px;
     }
 
     .stop-section { margin-top: 0; margin-bottom: 30px; padding: 10px; }
     .eta-table th, .eta-table td { padding: 5px 10px; }
     td.route-no, th.route-no { padding-right: 10px; }
     .stop-title { padding-left: 0; }
-    .eta-item, .eta-table .eta-item { width: 84px; padding: 3px; }
+    .eta-item, .eta-table .eta-item { width: 84px; padding: 2px; }
 
     .dest-text .stop-label {
         transform: translateY(0px);
@@ -1715,6 +1723,7 @@ th.route-no {
         --font-eta-large: 1.1em;
         --font-eta-small: 0.6em;
         --font-eta-tag-small: 0.6rem;
+        --font-destination: 1.4rem;
     }
 }
 
@@ -1799,7 +1808,7 @@ th.route-no {
         --font-title: 2rem;
         --font-route: 3.3rem;
         --font-eta-tag-small: 0.6rem;
-        --font-eta-time: 1.4em;
+        --font-eta-time: 2rem;
         --font-destination: 1.6rem;
     }
 
@@ -1831,11 +1840,10 @@ th.route-no {
         --font-stop-code: 1.2rem;
         --font-destination-remark: 1.2rem;
         --font-stop-label: 1.5rem;
-        --font-eta-time: 1.2em;
-        --font-arriving: 0.8em;
+        --font-eta-time: 2.9rem;
         --font-eta-exact: 1.5em;
         --font-eta-min: 1rem;
-        --font-eta-large: 2.3rem;
+        --font-eta-large: 2.6rem;
         --font-eta-small: 1rem;
         --font-eta-small-seconds: 0.8em;
         --font-eta-tag-small: 0.8rem;
@@ -1882,10 +1890,9 @@ th.route-no {
         vertical-align: middle;
     }
 
-    .dest-sub-info {
+    .eta-table td.dest .dest-sub-info {
         display: block;
-    margin-top: -5px; 
-    margin-left: -8px; 
+        margin-left: -8px !important;
     }
 
     .dir-circle {
@@ -1919,6 +1926,11 @@ th.route-no {
         font-size: 1rem; 
     }
 
+    /* Prevent the stop ETA pop-up destination from inheriting TV-scale text. */
+    .route-window .stop-eta-destination {
+        font-size: 1.4rem;
+    }
+
     .time-text { font-size: var(--font-time-exact); }
 }
 
@@ -1926,7 +1938,7 @@ th.route-no {
 /* TV Mode / Large Screen Optimization */
 @media (min-width: 1800px) {
     :root {
-        --font-destination: 2.2rem;
+        --font-destination: 2.3rem;
         --font-stop-code: 1.4rem;
     }
 
@@ -1939,5 +1951,5 @@ th.route-no {
 
 /* Testing Borders */
  table, th, td {
-    border: 0px solid white;
+    border: 0px solid gray;
 } 
