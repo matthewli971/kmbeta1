@@ -205,6 +205,39 @@ body {
     margin-left: auto;
 }
 
+.stop-modify-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 35px;
+    height: 35px;
+    margin: 0;
+    padding: 4px;
+    border: none;
+    border-radius: 0;
+    background: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: var(--font-refresh);
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.stop-modify-button svg {
+    width: 1rem;
+    height: 1rem;
+}
+
+.stop-modify-button:hover,
+.stop-modify-button:focus-visible {
+    background: none;
+    color: #ccc;
+    outline: none;
+}
+
+.stop-modify-button:active {
+    transform: scale(0.95);
+}
+
 #btn-settings {
     background: none;
     border: none;
@@ -321,7 +354,8 @@ body {
     border-color: var(--color-dark-grey);
 }
 
-#station-search::-webkit-search-cancel-button {
+#station-search::-webkit-search-cancel-button,
+.station-config-field input[type="search"]::-webkit-search-cancel-button {
     width: 20px;
     height: 20px;
     cursor: pointer;
@@ -951,19 +985,6 @@ body {
     opacity: 0.5;
 }
 
-/* Keep the stop-window refresh control from increasing the header height. */
-.stop-eta-window .route-window-actions {
-    position: absolute;
-    top: 16px;
-    right: 50px;
-}
-.stop-eta-window .route-window-refresh {
-    min-width: 42px;
-    height: 28px;
-    padding: 0 8px;
-    font-size: 1.1rem;
-}
-
 .route-direction-button {
     width: 34px;
     height: 34px;
@@ -1422,11 +1443,6 @@ input:checked + .slider:before {
     right: 8px;
 }
 
-.stop-eta-window .route-window-actions {
-    top: 4px;
-    right: 48px;
-}
-
 .eta-table .eta-item {
     width: var(--eta-item-width);
 }
@@ -1559,7 +1575,6 @@ th.route-no {
 
     .eta-item-last { display: flex; }
     .stop-eta-window .stop-eta-times .eta-item:nth-child(n + 3) { display: inline-flex; }
-    .stop-eta-window .route-window-actions { top: 4px; right: 50px; }
     .stop-eta-table td.route-no { width: 15%; }
 }
 
@@ -1623,11 +1638,6 @@ th.route-no {
     .route-window-close {
         top: 12px;
         right: 12px;
-    }
-
-    .stop-eta-window .route-window-actions {
-        top: 16px;
-        right: 50px;
     }
 
     .route-window-route,
@@ -1952,4 +1962,886 @@ th.route-no {
 /* Testing Borders */
  table, th, td {
     border: 0px solid gray;
-} 
+}
+
+body.station-config-open {
+    overflow: hidden;
+}
+
+.station-config-overlay {
+    position: fixed;
+    z-index: 10020;
+    inset: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    place-items: center;
+    padding: 0;
+    box-sizing: border-box;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+}
+
+.station-config-overlay.is-open {
+    opacity: 1;
+}
+
+.station-config-window {
+    /*position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: var(--color-text);
+    font-size: 16px;*/
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    box-sizing: border-box;
+}
+
+.station-config-header {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-direction: column;
+    gap: 10px;
+    flex: 0 0 auto;
+    padding: 14px;
+}
+
+.station-config-header h2,
+.station-import-confirm-card h3 {
+    margin: 0;
+    color: #fff;
+}
+
+.station-config-header h2 {
+    font-size: 1.45rem;
+}
+
+.station-config-header p,
+.station-config-title-field p,
+.station-import-confirm-card p {
+    margin: 6px 0 0;
+    color: var(--color-grey);
+    font-size: 0.85rem;
+    line-height: 1.45;
+}
+
+.station-config-header b,
+.station-config-field b {
+    color: #ff8e8e;
+}
+
+.station-config-header-actions,
+.station-config-footer-actions,
+.station-import-confirm-actions {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 8px;
+}
+
+.station-config-header-actions {
+    width: 100%;
+    padding-right: 38px;
+    box-sizing: border-box;
+    flex-wrap: wrap;
+}
+
+.station-config-secondary-button,
+.station-config-reset,
+.station-config-save,
+.station-config-clear,
+.station-config-cancel,
+.station-config-close,
+.station-config-remove-button,
+.station-config-remove-group,
+.station-config-add-stop,
+.station-config-add-group,
+.station-config-text-button,
+.station-search-result {
+    font: inherit;
+}
+
+.station-config-secondary-button,
+.station-config-reset,
+.station-config-save,
+.station-config-clear,
+.station-config-cancel,
+.station-config-add-stop,
+.station-config-add-group {
+    min-height: 34px;
+    border-radius: 5px;
+    padding: 6px 11px;
+    cursor: pointer;
+}
+
+.station-config-secondary-button {
+    border: 1px solid #aaa;
+    background: #333;
+    color: #fff;
+}
+
+.station-config-secondary-button:hover,
+.station-config-secondary-button:focus-visible {
+    border-color: #fff;
+    background: #444;
+    outline: none;
+}
+
+.station-config-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    font-size: 1.8rem;
+    line-height: 1;
+}
+
+.station-config-close:hover,
+.station-config-close:focus-visible {
+    background: #444;
+    outline: none;
+}
+
+.station-config-file-input {
+    display: none;
+}
+
+.station-config-body {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 14px;
+}
+
+.station-config-title-field {
+    margin-bottom: 18px;
+    padding: 14px;
+    border: 1px solid #505050;
+    border-radius: 8px;
+    background: #151515;
+}
+
+.station-config-title-field p code {
+    color: #fff59f;
+}
+
+.station-config-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    color: #f2f2f2;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.station-config-field small {
+    color: var(--color-grey);
+    font-size: 0.78rem;
+    font-weight: normal;
+}
+
+.station-config-field input {
+    width: 100%;
+    min-height: 38px;
+    box-sizing: border-box;
+    border: 1px solid #777;
+    border-radius: 5px;
+    padding: 7px 9px;
+    background: #0d0d0d;
+    color: #fff;
+    font: inherit;
+    font-weight: normal;
+}
+
+.station-config-field input:focus {
+    border-color: var(--color-stop-title);
+    outline: 2px solid rgb(124 181 255 / 28%);
+    outline-offset: 1px;
+}
+
+.station-config-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.station-config-group {
+    border: 1px solid #575757;
+    border-radius: 9px;
+    padding: 14px;
+    background: #252525;
+}
+
+.station-config-group-header,
+.station-config-stop-heading,
+.station-selected-stop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.station-config-group-header {
+    margin-bottom: 12px;
+    color: #fff59f;
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.station-config-group-title-field {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 8px;
+    color: #fff59f;
+    font: inherit;
+}
+
+.station-config-group-title-field > span {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.station-config-group-title-field input {
+    width: 100%;
+    min-width: 0;
+    min-height: 34px;
+    box-sizing: border-box;
+    border: 1px solid #777;
+    border-radius: 5px;
+    padding: 6px 9px;
+    background: #0d0d0d;
+    color: #fff;
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: normal;
+}
+
+.station-config-group-title-field input:focus {
+    border-color: var(--color-stop-title);
+    outline: 2px solid rgb(124 181 255 / 28%);
+    outline-offset: 1px;
+}
+
+.station-config-remove-group,
+.station-config-text-button {
+    border: 0;
+    background: transparent;
+    color: #ff9b9b;
+    cursor: pointer;
+    font-size: 0.82rem;
+}
+
+.station-config-remove-group:hover,
+.station-config-remove-group:focus-visible,
+.station-config-text-button:hover,
+.station-config-text-button:focus-visible {
+    color: #fff;
+    text-decoration: underline;
+    outline: none;
+}
+
+.station-config-remove-group-button {
+    position: static;
+    top: auto;
+    right: auto;
+    display: grid;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #ff9b9b;
+    font-size: 1.8rem;
+    line-height: 1;
+}
+
+.station-config-remove-group-button:hover,
+.station-config-remove-group-button:focus-visible {
+    border-radius: 4px;
+    background: #3a1f1f;
+    text-decoration: none;
+}
+
+.station-config-group-name {
+    margin-bottom: 14px;
+}
+
+.station-config-stop-list {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    gap: 12px;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px 2px 10px;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+}
+
+.station-config-stop {
+    flex: 0 0 min(340px, calc(100% - 24px));
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 12px;
+    border: 1px solid #494949;
+    border-radius: 7px;
+    background: #171717;
+}
+
+.station-config-stop-heading {
+    margin-bottom: 10px;
+    color: #ddd;
+    font-size: 0.88rem;
+}
+
+.station-config-remove-button {
+    display: grid;
+    width: 27px;
+    height: 27px;
+    place-items: center;
+    border: 1px solid #d27676;
+    border-radius: 4px;
+    padding: 0;
+    background: #2b1717;
+    color: #ffb3b3;
+    cursor: pointer;
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.station-config-remove-button:hover,
+.station-config-remove-button:focus-visible {
+    background: #572626;
+    color: #fff;
+    outline: 2px solid rgb(255 159 159 / 35%);
+    outline-offset: 1px;
+}
+
+.station-config-search-field {
+    position: relative;
+}
+
+.station-search-control {
+    position: relative;
+    min-width: 0;
+}
+
+.station-stop-search-results {
+    position: fixed;
+    z-index: 10050;
+    display: none;
+    min-width: 220px;
+    max-height: 240px;
+    margin: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    border: 1px solid #454545;
+    border-radius: 5px;
+    background: #202020;
+    box-shadow: 0 8px 20px rgb(0 0 0 / 55%);
+}
+
+.station-search-message {
+    padding: 8px 9px;
+    border: 1px dashed #555;
+    border-radius: 5px;
+    color: #aaa;
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+
+.station-search-message.is-error {
+    border-color: #a65b5b;
+    color: #ffb0b0;
+}
+
+.station-search-result-title {
+    padding: 7px 9px 5px;
+    color: #aaa;
+    font-size: 0.76rem;
+    font-weight: bold;
+}
+
+.station-search-result {
+    display: flex;
+    width: 100%;
+    align-items: flex-start;
+    gap: 8px;
+    border: 1px solid #454545;
+    border-bottom: 0;
+    padding: 8px 9px;
+    background: #202020;
+    color: #fff;
+    cursor: pointer;
+    text-align: left;
+}
+
+.station-search-result .route-company-badge {
+    flex: 0 0 10px;
+    width: 10px;
+    height: 1rem;
+    margin-right: 0;
+}
+
+.station-search-result:last-child {
+    border-bottom: 1px solid #454545;
+}
+
+.station-search-result:hover,
+.station-search-result:focus-visible {
+    position: relative;
+    z-index: 1;
+    border-color: var(--color-stop-title);
+    background: #303947;
+    outline: none;
+}
+
+.station-search-result-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.station-stop-name-with-code {
+    display: flex;
+    min-width: 0;
+    align-items: baseline;
+}
+
+.station-stop-name-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+.station-stop-name-with-code .stop-eta-code {
+    flex: 0 0 auto;
+    font-size: 0.8rem;
+}
+
+.station-search-result-copy strong,
+.station-search-result-copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.station-search-result-copy small {
+    color: #bbb;
+    font-size: 0.77rem;
+}
+
+.station-selected-stop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 30px;
+    margin: 0;
+    padding: 5px 8px;
+    border: 1px solid #466d53;
+    border-radius: 5px;
+    background: #14281a;
+    color: #d6f4dc;
+    font-size: 0.82rem;
+}
+
+.station-selected-stop-empty {
+    border-color: #555;
+    background: #202020;
+    color: #aaa;
+    justify-content: flex-start;
+}
+
+.station-selected-stop-name {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+}
+
+.station-selected-stop-name .route-company-badge {
+    flex: 0 0 10px;
+    width: 10px;
+    height: 1rem;
+    margin-right: 0;
+}
+
+.station-selected-stop-name .station-stop-name-with-code {
+    min-width: 0;
+    flex: 0 1 auto;
+}
+
+.station-stop-custom-label {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    min-height: 1.45em;
+    margin-left: 2px;
+    padding: 0 5px;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    box-sizing: border-box;
+    color: var(--color-text);
+    font-size: 0.8rem;
+    font-weight: bold;
+    line-height: 1.2;
+}
+
+.station-selected-stop-actions {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 4px;
+}
+
+.station-config-tag-control {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.station-config-tag-button {
+    display: grid;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    padding: 0;
+    background: transparent;
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.station-config-tag-button svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+}
+
+.station-config-tag-button:hover,
+.station-config-tag-button:focus-visible {
+    background: #333;
+    color: #fff;
+    outline: none;
+}
+
+.station-config-selected-stop-list {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.station-config-label-field {
+    margin-top: 10px;
+}
+
+.station-config-add-stop,
+.station-config-add-group {
+    border: 1px dashed #777;
+    background: transparent;
+    color: var(--color-stop-title);
+}
+
+.station-config-add-stop {
+    display: flex;
+    flex: 0 0 92px;
+    width: 92px;
+    min-height: 250px;
+    margin-top: 0;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+    box-sizing: border-box;
+    padding: 12px 8px;
+    text-align: center;
+}
+
+.station-config-add-stop-icon {
+    font-size: 1.7rem;
+    font-weight: normal;
+    line-height: 1;
+}
+
+.station-config-add-group {
+    width: 100%;
+    min-height: 48px;
+    margin-top: 16px;
+    font-size: 0.95rem;
+    font-weight: bold;
+}
+
+.station-config-add-stop:hover,
+.station-config-add-stop:focus-visible,
+.station-config-add-group:hover,
+.station-config-add-group:focus-visible {
+    border-color: var(--color-stop-title);
+    background: #26394e;
+    color: #fff;
+    outline: none;
+}
+
+/* Fixed outside the scrollable form body so the controls remain visible. */
+.station-config-footer {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 12px;
+    flex: 0 0 auto;
+    min-height: 0;
+    padding: 10px 14px;
+    border-top: 1px solid #666;
+    background: #202020;
+    box-shadow: 0 -8px 18px rgb(0 0 0 / 22%);
+}
+
+.station-config-status {
+    min-width: 0;
+    min-height: 1.2em;
+    color: #aaa;
+    font-size: 0.84rem;
+    line-height: 1.35;
+}
+
+.station-config-status.is-error {
+    color: #ffabab;
+}
+
+.station-config-status.is-success {
+    color: #9fe5ae;
+}
+
+.station-config-save {
+    min-width: 72px;
+    border: 1px solid #fff;
+    background: #fff;
+    color: #161616;
+    font-weight: bold;
+}
+
+.station-config-clear {
+    min-width: 72px;
+    border: 1px solid #d27676;
+    background: #2b1717;
+    color: #ffb3b3;
+    font-weight: bold;
+}
+
+.station-config-clear:hover,
+.station-config-clear:focus-visible {
+    border-color: #ff9b9b;
+    background: #572626;
+    color: #fff;
+    outline: none;
+}
+
+.station-config-save:hover,
+.station-config-save:focus-visible {
+    border-color: #fff59f;
+    background: #fff59f;
+    outline: none;
+}
+
+.station-config-reset {
+    min-width: 72px;
+    border: 1px solid #fff;
+    background: #222;
+    color: #fff;
+}
+
+.station-config-reset:hover,
+.station-config-reset:focus-visible {
+    background: #444;
+    outline: 2px solid rgb(255 255 255 / 30%);
+    outline-offset: 1px;
+}
+
+.station-config-cancel {
+    min-width: 72px;
+    border: 1px solid #fff;
+    background: #222;
+    color: #fff;
+}
+
+.station-config-cancel:hover,
+.station-config-cancel:focus-visible {
+    background: #444;
+    outline: 2px solid rgb(255 255 255 / 30%);
+    outline-offset: 1px;
+}
+
+.station-config-footer-actions {
+    width: 100%;
+}
+
+.station-config-footer-actions > .station-config-save,
+.station-config-footer-actions > .station-config-reset,
+.station-config-footer-actions > .station-config-clear,
+.station-config-footer-actions > .station-config-cancel {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.station-import-confirm {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+    background: rgb(0 0 0 / 64%);
+}
+
+.station-import-confirm-card {
+    width: min(430px, 100%);
+    padding: 20px;
+    border: 1px solid #888;
+    border-radius: 10px;
+    background: #262626;
+    box-shadow: 0 14px 38px rgb(0 0 0 / 65%);
+}
+
+.station-import-confirm-actions {
+    justify-content: flex-end;
+    margin-top: 18px;
+}
+
+.station-label-dialog {
+    position: absolute;
+    z-index: 3;
+    top: calc(100% + 4px);
+    right: 0;
+    box-sizing: border-box;
+}
+
+.station-label-dialog-card {
+    width: 230px;
+    padding: 10px;
+    border: 1px solid #555;
+    border-radius: 6px;
+    background: #111;
+    box-shadow: 0 8px 20px rgb(0 0 0 / 55%);
+}
+
+.station-label-dialog-input {
+    width: 100%;
+    min-height: 38px;
+    box-sizing: border-box;
+    border: 1px solid #777;
+    border-radius: 5px;
+    padding: 7px 9px;
+    background: #0d0d0d;
+    color: #fff;
+    font: inherit;
+    text-transform: uppercase;
+}
+
+.station-label-dialog-input:focus {
+    border-color: var(--color-stop-title);
+    outline: 2px solid rgb(124 181 255 / 28%);
+    outline-offset: 1px;
+}
+
+.station-label-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+@media (min-width: 700px) {
+    .station-config-selected-stop-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .station-config-overlay {
+        padding: 0;
+    }
+
+    .station-config-window {
+        width: 100%;
+        height: min(860px, calc(100vh - 40px));
+        max-height: calc(100vh - 40px);
+    }
+
+    .station-config-header {
+        flex-direction: row;
+        gap: 16px;
+        padding: 18px 20px;
+    }
+
+    .station-config-header-actions {
+        width: auto;
+        padding-right: 0;
+        box-sizing: content-box;
+        flex-wrap: nowrap;
+    }
+
+    .station-config-close {
+        position: static;
+        top: auto;
+        right: auto;
+    }
+
+    .station-config-body {
+        padding: 20px;
+    }
+
+    .station-config-footer {
+        align-items: center;
+        flex-direction: row;
+        min-height: 62px;
+        padding: 12px 20px;
+    }
+
+    .station-config-status {
+        min-height: 0;
+    }
+
+    .station-config-footer-actions {
+        width: auto;
+    }
+
+    .station-config-footer-actions > .station-config-save,
+    .station-config-footer-actions > .station-config-reset,
+    .station-config-footer-actions > .station-config-clear,
+    .station-config-footer-actions > .station-config-cancel {
+        flex: 0 0 auto;
+        min-width: 72px;
+    }
+}

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kmbeta1-shell-v5';
+const CACHE_NAME = 'kmbeta1-shell-v7';
 const APP_SHELL = [
     './',
     './index.html',
@@ -8,6 +8,7 @@ const APP_SHELL = [
     './data.js',
     './stop-eta.js',
     './eta.js',
+    './stop-modify.js',
     './script.js',
     './route-win.js',
     './stop-win.js',
@@ -16,6 +17,7 @@ const APP_SHELL = [
     './manifest.json',
     './manifest-stp.json',
     './manifest-mjh.json',
+    './config/index.js',
     './logo_v2.svg',
     './font/arial.ttf',
     './font/arialbd.ttf',

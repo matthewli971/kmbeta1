@@ -1,15 +1,17 @@
 // ===== Shared Application Data =====
 window.APP_CONFIG = Object.freeze({
-    version: 'v0.53',
+    version: 'v0.54',
     timeZone: 'Asia/Hong_Kong',
     apiLanguage: 'zh',
     mtrScheduleCacheTtlMs: 60000,
     countdownTargetDate: '2026-09-16',
     routeSearchCacheKey: 'kmbeta-route-search-v3',
+    customStationConfigKey: 'kmbeta-index-station-config-v2',
     showCtbStopStreetNameKey: 'kmbeta-show-ctb-stop-street-name'
 });
 
 window.LOCATION_CONFIG = Object.freeze({
+    index: Object.freeze({ config: 'config/index.js' }),
     stp: Object.freeze({ config: 'config/stp.js' }),
     mjh: Object.freeze({ config: 'config/mjh.js' })
 });

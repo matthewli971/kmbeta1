@@ -19,14 +19,17 @@ A web application to display real-time bus arrival times for specific Hong Kong 
 -   **Bus Stop Refresh Indicators**: Shows loading spinner to indicate the loading state by bus stops
 -   **Route Search**: Searches KMB and Citybus routes by route-number prefix and opens the outbound, service-type 1 route view.
 -   **Daily Route Cache**: Stores the route list locally and refreshes it after 5:15 AM Hong Kong time.
+-   **Modifiable Index Display**: User can customize which station should be shown by setting window, and user can export and import data
 
 ## Usage
 
 Open a location page in a modern web browser:
 
-- `stp.html` for HK Science Park (the default `index.html` page opens the same monitor)
+- `index.html` Customizable HK Bus Stop Monitor
+- `stp.html` Preset for Science Park and friends configuration
 
-Each location page loads the same application shell and shared monitor logic. Its location-specific stops, ordering, and display options live in `config/stp.js` , so functional fixes only need to be made once in `script.js` or `bootstrap.js`.
+
+Each location page loads the same application shell and shared monitor logic. The editable `index.html` starts from `config/index.js` and will prompt user to input stop monitoe info. Functional fixes only need to be made once in `script.js` or `bootstrap.js`.
 
 ## Development
 

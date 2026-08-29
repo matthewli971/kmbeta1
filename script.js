@@ -1,10 +1,11 @@
 // ===== Runtime State =====
 const STOP_CACHE = {};
 
-// Apply page title from config
-document.getElementById('app-title').textContent = APP_TITLE;
+// Apply the configured title, including a locally imported index.html configuration.
+const runtimeAppTitle = window.KMBETA_RUNTIME_APP_TITLE ?? APP_TITLE;
+document.getElementById('app-title').textContent = runtimeAppTitle;
 document.getElementById('app-version').textContent = APP_CONFIG.version;
-document.title = APP_TITLE;
+document.title = runtimeAppTitle;
 
 function applyDestReplacement(dest) {
     if (!dest) return dest;
