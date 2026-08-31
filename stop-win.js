@@ -7,21 +7,6 @@ function closeStopEtaWindow() {
     stopEtaWindowState = null;
 }
 
-function renderStopEtaItem(eta) {
-    const etaDate = eta.eta ? new Date(eta.eta) : null;
-    const hasEta = Boolean(eta.eta) && !Number.isNaN(etaDate?.getTime());
-    const diffMins = hasEta ? Math.floor((etaDate - new Date()) / 60000) : null;
-    const isArriving = hasEta && diffMins < 1;
-    const isScheduled = eta.rmk_tc === '原定班次' || eta.rmk_tc === '未開出';
-    const minClass = isArriving ? 'text-green' : isScheduled ? 'text-grey' : hasEta && diffMins < 5 ? 'text-light-green' : hasEta ? 'text-yellow' : 'text-grey';
-    const tagClass = isArriving ? 'text-black bold' : !hasEta || isScheduled || diffMins >= 30 ? 'text-grey' : 'text-white bold';
-    const remark = isScheduled ? '預定' : eta.rmk_tc === '最後班次' ? '尾班' : '';
-    return `<div class="eta-item route-window-eta-item${isArriving ? ' arriving' : ''}">
-        <div class="eta-large ${minClass}"><span class="time-text-b${isArriving ? ' bold' : ''}" data-timestamp="${escapeHtml(eta.eta)}" data-remark="${escapeHtml(eta.rmk_tc || '')}">${formatDuration(eta.eta, eta.rmk_tc)}</span></div>
-        <div class="eta-small"><span class="eta-remark-tag ${tagClass}">${formatTimeHtmlMinMode(eta.eta)}</span> <span class="eta-remark-tag-small ${tagClass}">${remark}</span></div>
-    </div>`;
-}
-
 async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB', silentRefresh = false) {
     if (!silentRefresh) {
         closeStopEtaWindow();
@@ -132,11 +117,13 @@ async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB', si
             const variationCircles = item.variationServiceTypes?.length > 1
                 ? item.variationServiceTypes.map(variation => `<button class="route-link stop-eta-variation ${Number(variation) === 1 ? 'normal' : 'variation'}" type="button" title="查看${escapeHtml(item.route)}路線變體 ${escapeHtml(variation)}" data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(routeCompany)}" data-companies="${escapeHtml(company)}" data-direction="${escapeHtml(direction)}" data-service-type="${escapeHtml(variation)}" aria-label="查看${escapeHtml(item.route)}路線變體 ${escapeHtml(variation)}">${escapeHtml(variation)}</button>`).join('')
                 : '';
-            const destinationCell = `<td class="stop-eta-destination"><span class="stop-eta-destination-content"><span class="stop-eta-destination-name">${escapeHtml(item.destination)}</span>${variationCircles}</span></td>`;
-            const timesCell = `<td class="stop-eta-times">${item.etas.slice(0, 3).map(renderStopEtaItem).join('')}</td>`;
+            const destinationCell = `<td class="stop-eta-destination"><span class="stop-eta-destination-content">${createMarqueeHtml(escapeHtml(item.destination), 'stop-eta-destination-name')}${variationCircles}</span></td>`;
+            const timesCell = `<td class="stop-eta-times">${item.etas.slice(0, 3).map(renderPopupEtaItem).join('')}</td>`;
             return `<tr>${routeCell}${destinationCell}${timesCell}</tr>`;
         }).join('');
-        overlay.querySelector('.route-window-content').innerHTML = `<table class="stop-eta-table"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">暫無班次</td></tr>'}</tbody></table>`;
+        const content = overlay.querySelector('.route-window-content');
+        content.innerHTML = `<table class="stop-eta-table"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">暫無班次</td></tr>'}</tbody></table>`;
+        updateMarqueeOverflow(content);
     } catch (error) {
         console.error(`Unable to load ${company} stop ETA window:`, error);
         if (stopEtaWindowState === state) overlay.querySelector('.route-window-content').innerHTML = '<div class="route-window-message">未能取得到站時間，請稍後再試。</div>';

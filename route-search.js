@@ -176,23 +176,34 @@ async function loadRouteSearchRoutes() {
     return routeSearchLoadPromise;
 }
 
-function renderRouteSearchResults(list, query = '') {
+function getRouteSearchMatches(query = '') {
     const prefix = query.trim().toUpperCase();
-    const matches = (routeSearchRoutes || []).filter(item => item.route.toUpperCase().startsWith(prefix));
+    return (routeSearchRoutes || []).filter(item => item.route.toUpperCase().startsWith(prefix));
+}
+
+function renderRouteSearchResults(list, query = '') {
+    const matches = getRouteSearchMatches(query);
     list.innerHTML = matches.length
         ? matches.map(item => {
             const routeClass = typeof getRouteNumberClass === 'function' ? getRouteNumberClass(item.route, item.company) : '';
+            const longRouteClass = item.route.length >= 4 ? ' long-route-text' : '';
             const companyBadges = item.companies.split(',').map(company =>
                 `<span class="route-company-badge route-company-badge-${company.toLowerCase()}" title="${company}" aria-label="${company}"></span>`
             ).join('');
             const directionSymbol = item.directionType === 'circular' ? '↺' : item.directionType === 'dual' ? '↔' : '→';
-            const origin = item.origin.replace(/[（(]循環線[）)]/g, '').trim();
-            const destination = item.destination.replace(/[（(]循環線[）)]/g, '').trim();
+            const originInfo = extractViaPoints(item.origin);
+            const destinationInfo = extractViaPoints(item.destination);
+            const origin = originInfo.name.replace(/[（(]循環線[）)]/g, '').trim();
+            const destination = destinationInfo.name.replace(/[（(]循環線[）)]/g, '').trim();
             const loopBadge = item.directionType === 'circular' ? '<span class="route-loop-badge">循環線</span>' : '';
-            const journey = origin && destination
-                ? `<span class="route-window-journey">${escapeHtml(origin)} ${directionSymbol} ${escapeHtml(destination)} ${loopBadge}</span>`
+            const viaPoints = [...new Set([...originInfo.viaPoints, ...destinationInfo.viaPoints])];
+            const viaRemark = viaPoints.length
+                ? `<span class="route-search-via-remark">經: ${escapeHtml(viaPoints.join(' '))}</span>`
                 : '';
-            return `<button class="route-search-result" type="button" role="option" data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(item.company)}" data-companies="${escapeHtml(item.companies)}" data-direction="${item.direction}" data-service-type="${item.serviceType}">${companyBadges}<span class="route-window-route ${routeClass}">${formatRouteNumber(item.route)}</span>${journey}</button>`;
+            const journey = origin && destination
+                ? `<span class="route-search-journey-group"><span class="route-window-journey">${escapeHtml(origin)} ${directionSymbol} ${escapeHtml(destination)} ${loopBadge}</span>${viaRemark}</span>`
+                : '';
+            return `<button class="route-search-result" type="button" role="option" data-route="${escapeHtml(item.route)}" data-company="${escapeHtml(item.company)}" data-companies="${escapeHtml(item.companies)}" data-direction="${item.direction}" data-service-type="${item.serviceType}">${companyBadges}<span class="route-window-route${routeClass}${longRouteClass}">${formatRouteNumber(item.route)}</span>${journey}</button>`;
         }).join('')
         : '<div class="route-search-status">找不到相符路線</div>';
 }
@@ -205,6 +216,8 @@ function initializeStationSearch() {
     if (!selector || !search || !dropdown) return;
 
     const openDropdown = async () => {
+        document.getElementById('title-stop-dropdown')?.classList.add('hidden');
+        document.getElementById('title-stop-search')?.setAttribute('aria-expanded', 'false');
         dropdown.classList.remove('hidden');
         search.setAttribute('aria-expanded', 'true');
         if (!routeSearchRoutes) list.innerHTML = '<div class="route-search-status">載入路線中...</div>';
@@ -220,27 +233,34 @@ function initializeStationSearch() {
         dropdown.classList.add('hidden');
         search.setAttribute('aria-expanded', 'false');
     };
-    const clearSearchOnLeave = () => {
-        search.value = '';
-        list.innerHTML = '';
-        closeDropdown();
-    };
-
     search.addEventListener('focus', openDropdown);
     search.addEventListener('click', openDropdown);
     search.addEventListener('input', () => {
         if (routeSearchRoutes) renderRouteSearchResults(list, search.value);
     });
-    search.addEventListener('keydown', event => {
+    search.addEventListener('keydown', async event => {
         if (event.key === 'Escape') {
             closeDropdown();
             search.blur();
+            return;
+        }
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            try {
+                await loadRouteSearchRoutes();
+                const matches = getRouteSearchMatches(search.value);
+                if (matches.length !== 1) return;
+                const [match] = matches;
+                openRouteWindow(match.route, match.company, match.direction, match.serviceType, match.companies);
+                closeDropdown();
+            } catch (error) {
+                console.error('Unable to open route-search result:', error);
+            }
         }
     });
     document.addEventListener('click', event => {
         if (!selector.contains(event.target)) closeDropdown();
     });
-    selector.addEventListener('mouseleave', clearSearchOnLeave);
     list.addEventListener('click', event => {
         const routeButton = event.target.closest('.route-search-result');
         if (!routeButton) return;

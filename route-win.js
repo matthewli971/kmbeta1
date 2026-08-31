@@ -255,16 +255,6 @@ function renderCompanyBadges(company, companies) {
         .join('');
 }
 
-function extractViaPoints(placeName) {
-    const viaPoints = [];
-    const name = String(placeName || '').replace(/[（(]\s*經\s*([^()（）]*?)[）)]/g, (match, viaPoint) => {
-        const point = viaPoint.trim().replace(/\s+/g, ' ');
-        if (point) viaPoints.push(point);
-        return '';
-    }).replace(/\s{2,}/g, ' ').trim();
-    return { name, viaPoints };
-}
-
 function renderRouteTitle(route, routeInfo, company, companies, reverseJourney = false) {
     const routeClass = getRouteNumberClass(route, company);
     const routeLabel = `${renderCompanyBadges(company, companies)}<span class="route-window-route${routeClass}">${formatRouteNumber(route)}</span>`;
@@ -302,39 +292,6 @@ async function hasBothDirections(route) {
     } catch (e) {
         return true;
     }
-}
-
-function renderRouteStopEta(eta, showOperatorBorder = false) {
-    const etaDate = eta.eta ? new Date(eta.eta) : null;
-    const hasEta = Boolean(eta.eta) && !Number.isNaN(etaDate?.getTime());
-    const diffMs = hasEta ? etaDate - new Date() : null;
-    const diffMins = hasEta ? Math.floor(diffMs / 60000) : null;
-    const isArriving = hasEta && diffMins < 1;
-    const isScheduled = eta.rmk_tc === '原定班次' || eta.rmk_tc === '未開出';
-    let minClass = hasEta ? 'text-yellow' : 'text-grey';
-
-    if (isArriving) {
-        minClass = 'text-green';
-    } else if (hasEta && isScheduled) {
-        minClass = 'text-grey';
-    } else if (hasEta && diffMins < 5) {
-        minClass = 'text-light-green';
-    }
-
-    const remarkTag = isScheduled ? '預定' : eta.rmk_tc === '最後班次' ? '尾班' : '';
-    const tagClass = isArriving ? 'text-black' : !hasEta || isScheduled || diffMins >= 30 ? 'text-grey' : 'text-white bold';
-    const borderClass = showOperatorBorder && eta._co === 'KMB'
-        ? ' eta-border-kmb'
-        : showOperatorBorder && eta._co === 'CTB'
-            ? ' eta-border-ctb'
-            : '';
-    return `<div class="eta-item route-window-eta-item${isArriving ? ' arriving' : ''}${borderClass}">
-        <div class="eta-large ${minClass}"><span class="time-text-b${isArriving ? ' bold' : ''}" data-timestamp="${escapeHtml(eta.eta)}" data-remark="${escapeHtml(eta.rmk_tc || '')}">${formatDuration(eta.eta, eta.rmk_tc)}</span></div>
-        <div class="eta-small">
-            <span class="eta-remark-tag ${tagClass}">${formatTimeHtmlMinMode(eta.eta)}</span>
-            <span class="eta-remark-tag-small ${tagClass}">${remarkTag}</span>
-        </div>
-    </div>`;
 }
 
 function isCurrentRouteWindowRequest(state, requestId, overlay, direction, serviceType) {
@@ -509,12 +466,13 @@ async function loadRouteWindow(loadVariations = true, silent = false) {
                     const etas = getRouteWindowEtas(primaryEtaBySequence, otherEtaBySequence, String(stop.seq));
                     maximumEtaCount = Math.max(maximumEtaCount, etas.length);
                     const etaHtml = etas.length
-                        ? etas.map(eta => renderRouteStopEta(eta, showOperatorBorder)).join('')
+                        ? etas.map(eta => renderPopupEtaItem(eta, { showOperatorBorder })).join('')
                         : '<span class="route-stop-no-eta">暫無班次</span>';
-                    return `<tr data-stop-seq="${escapeHtml(stop.seq)}"><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name"><span class="route-stop-name-text">${escapeHtml(displayName)}</span>${stopCodeHtml}</td><td class="route-stop-times">${etaHtml}</td></tr>`;
+                    return `<tr data-stop-seq="${escapeHtml(stop.seq)}"><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name">${createMarqueeHtml(escapeHtml(displayName), 'route-stop-name-text')}${stopCodeHtml}</td><td class="route-stop-times">${etaHtml}</td></tr>`;
                 }).join('');
                 setPopupEtaColumnCount(overlay.querySelector('.popup-window'), maximumEtaCount);
                 content.innerHTML = `<table class="route-stop-table"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">未能取得站點資料。</td></tr>'}</tbody></table>`;
+                updateMarqueeOverflow(content);
             };
             otherRouteLoader.setRenderer(renderKmbTable);
             otherRouteLoader.start();
@@ -564,13 +522,14 @@ async function loadRouteWindow(loadVariations = true, silent = false) {
                     const displayName = formatCtbRouteStopName(name);
                     const etas = getRouteWindowEtas(primaryEtaBySequence, otherEtaBySequence, String(stop.seq));
                     maximumEtaCount = Math.max(maximumEtaCount, etas.length);
-                    const etaHtml = etas.length ? etas.map(eta => renderRouteStopEta(eta, showOperatorBorder)).join('') : '<span class="route-stop-no-eta">暫無班次</span>';
+                    const etaHtml = etas.length ? etas.map(eta => renderPopupEtaItem(eta, { showOperatorBorder })).join('') : '<span class="route-stop-no-eta">暫無班次</span>';
                     const displayStopCode = formatStopCodeForDisplay('CTB', stop.stop);
                     const stopCodeHtml = `<span class="route-stop-code"><button class="route-stop-info-button" type="button" data-company="CTB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(displayName)}" data-stop-code="${escapeHtml(stop.stop)}" title="查看本站到站時間" aria-label="查看${escapeHtml(displayName)}到站時間">${escapeHtml(displayStopCode)}</button>${renderOtherRouteStopCode(otherStopCodesBySequence.get(String(stop.seq)), state.company, displayName)}</span>`;
-                    return `<tr data-stop-seq="${escapeHtml(stop.seq)}"><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name"><span class="route-stop-name-text">${escapeHtml(displayName)}</span>${stopCodeHtml}</td><td class="route-stop-times">${etaHtml}</td></tr>`;
+                    return `<tr data-stop-seq="${escapeHtml(stop.seq)}"><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name">${createMarqueeHtml(escapeHtml(displayName), 'route-stop-name-text')}${stopCodeHtml}</td><td class="route-stop-times">${etaHtml}</td></tr>`;
                 }).join('');
                 setPopupEtaColumnCount(overlay.querySelector('.popup-window'), maximumEtaCount);
                 content.innerHTML = `<table class="route-stop-table"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">未能取得站點資料。</td></tr>'}</tbody></table>`;
+                updateMarqueeOverflow(content);
             };
             otherRouteLoader.setRenderer(renderCtbTable);
             otherRouteLoader.start();

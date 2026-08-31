@@ -367,12 +367,189 @@ function setStopRefreshState(section, state) {
     }
 }
 
-function updateMarqueeOverflow(container) {
+function createMarqueeHtml(content, marqueeClass) {
+    return `<span class="text-marquee ${marqueeClass}"><span class="marquee-inner">${content}</span></span>`;
+}
+
+function updateMarqueeOverflow(container, marqueeSelector = '.text-marquee') {
     if (!container) return;
     requestAnimationFrame(() => {
-        container.querySelectorAll('.dest-remark-marquee').forEach(marquee => {
+        container.querySelectorAll(marqueeSelector).forEach(marquee => {
             marquee.classList.toggle('is-overflowing', marquee.scrollWidth > marquee.clientWidth);
         });
+    });
+}
+
+// ===== Title Bus Stop Search =====
+let sharedKmbStopCatalogPromise = null;
+let titleStopSearchTimer = null;
+
+function normalizeBusStopSearchText(value) {
+    return String(value ?? '').trim().toLocaleLowerCase().replace(/\s+/g, '');
+}
+
+function normalizeBusStopSearchCode(value) {
+    const code = normalizeBusStopSearchText(value);
+    return /^\d+$/.test(code) ? code.replace(/^0+(?=\d)/, '') : code;
+}
+
+function getBusStopCodeMatchRank(code, query) {
+    const stopCode = normalizeBusStopSearchCode(code);
+    const searchCode = normalizeBusStopSearchCode(query);
+    if (!stopCode || !searchCode) return 3;
+    if (stopCode === searchCode) return 0;
+    if (stopCode.startsWith(searchCode)) return 1;
+    if (stopCode.includes(searchCode)) return 2;
+    return 3;
+}
+
+function compareBusStopSearchResults(a, b, query) {
+    const rankDifference = getBusStopCodeMatchRank(a.code, query) - getBusStopCodeMatchRank(b.code, query);
+    if (rankDifference) return rankDifference;
+
+    const nameDifference = String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant');
+    if (nameDifference) return nameDifference;
+
+    return normalizeBusStopSearchCode(a.code).localeCompare(
+        normalizeBusStopSearchCode(b.code),
+        'en',
+        { numeric: true, sensitivity: 'base' }
+    );
+}
+
+window.compareBusStopSearchResults = compareBusStopSearchResults;
+
+function getKmbBusStopCode(name) {
+    return String(name ?? '').match(/\s*\(([A-Z]{1,4}\d{1,4}[A-Z]?)\)\s*$/i)?.[1] || '';
+}
+
+function getKmbBusStopSearchName(stop) {
+    return String(stop?.name_tc || stop?.name_en || '')
+        .replace(/\s*\([A-Z]{1,4}\d{1,4}[A-Z]?\)\s*$/i, '')
+        .trim();
+}
+
+function getCtbBusStopSearchName(stop) {
+    const name = String(stop?.name_tc || stop?.name_en || '').trim();
+    if (window.getShowCtbStopStreetName?.()) return name;
+    const separatorIndex = name.lastIndexOf(', ');
+    return separatorIndex >= 0 && name.slice(separatorIndex + 2).trim()
+        ? name.slice(0, separatorIndex).trimEnd()
+        : name;
+}
+
+window.loadKmbStopCatalog = async function loadKmbStopCatalog() {
+    if (!sharedKmbStopCatalogPromise) {
+        sharedKmbStopCatalogPromise = fetch(`${window.API_ENDPOINTS.kmb.stop}?t=${Date.now()}`, { cache: 'no-store' })
+            .then(response => {
+                if (!response.ok) throw new Error(`KMB stop request failed (${response.status})`);
+                return response.json();
+            })
+            .then(payload => Array.isArray(payload.data) ? payload.data : [])
+            .catch(error => {
+                sharedKmbStopCatalogPromise = null;
+                throw error;
+            });
+    }
+    return sharedKmbStopCatalogPromise;
+};
+
+async function findTitleBusStopResults(query) {
+    const queryText = normalizeBusStopSearchText(query);
+    if (!queryText) return [];
+    const [catalog, ctbStop] = await Promise.all([
+        window.loadKmbStopCatalog(),
+        findTitleCtbStopByCode(query)
+    ]);
+    const kmbMatches = catalog
+        .map(stop => {
+            const code = getKmbBusStopCode(stop.name_tc) || getKmbBusStopCode(stop.name_en) || stop.stop;
+            const name = getKmbBusStopSearchName(stop) || String(stop.stop);
+            const codeMatches = getBusStopCodeMatchRank(code, query) < 3;
+            const nameMatches = normalizeBusStopSearchText(`${name} ${stop.name_tc} ${stop.name_en}`).includes(queryText);
+            return codeMatches || nameMatches ? { company: 'KMB', id: String(stop.stop), code, name } : null;
+        })
+        .filter(Boolean);
+    return [...kmbMatches, ...ctbStop].sort((a, b) => compareBusStopSearchResults(a, b, query));
+}
+
+async function findTitleCtbStopByCode(query) {
+    const enteredStopId = String(query || '').trim().replace(/\s+/g, '');
+    if (!/^\d{4,8}$/.test(enteredStopId)) return [];
+    const stopId = enteredStopId.length < 6 ? enteredStopId.padStart(6, '0') : enteredStopId;
+    try {
+        const response = await fetch(`${window.API_ENDPOINTS.ctb.stop}/${encodeURIComponent(stopId)}?lang=zh-hant&t=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) return [];
+        const payload = await response.json();
+        const stop = payload.data;
+        if (!stop?.stop) return [];
+        const name = getCtbBusStopSearchName(stop);
+        return name ? [{ company: 'CTB', id: String(stop.stop), code: String(stop.stop), name }] : [];
+    } catch {
+        return [];
+    }
+}
+
+function renderTitleStopSearchResults(list, results) {
+    list.innerHTML = results.length
+        ? results.map(stop => `<button class="station-search-result title-stop-search-result" type="button" role="option" data-stop-id="${escapeHtml(stop.id)}" data-stop-name="${escapeHtml(stop.name)}" data-stop-code="${escapeHtml(stop.code)}" data-company="${escapeHtml(stop.company)}"><span class="route-company-badge route-company-badge-${stop.company.toLowerCase()}" title="${stop.company}" aria-label="${stop.company}"></span><span class="station-search-result-copy"><span class="station-stop-name-with-code"><span class="station-stop-name-text">${escapeHtml(stop.name)}</span><span class="stop-eta-code">${escapeHtml(formatStopCodeForDisplay(stop.company, stop.code))}</span></span></span></button>`).join('')
+        : '<div class="station-search-message">找不到相符的巴士站。</div>';
+}
+
+function initializeTitleStopSearch() {
+    const selector = document.getElementById('station-selector');
+    const search = document.getElementById('title-stop-search');
+    const dropdown = document.getElementById('title-stop-dropdown');
+    const list = document.getElementById('title-stop-list');
+    if (!selector || !search || !dropdown || !list) return;
+
+    const closeDropdown = () => {
+        dropdown.classList.add('hidden');
+        search.setAttribute('aria-expanded', 'false');
+    };
+    const searchStops = async () => {
+        dropdown.classList.remove('hidden');
+        search.setAttribute('aria-expanded', 'true');
+        const query = search.value.trim();
+        if (!query) {
+            list.innerHTML = '<div class="station-search-message">請輸入站名或車站編號。</div>';
+            return;
+        }
+        list.innerHTML = '<div class="station-search-message">搜尋中...</div>';
+        try {
+            renderTitleStopSearchResults(list, await findTitleBusStopResults(query));
+        } catch (error) {
+            console.error('Unable to search bus stops:', error);
+            list.innerHTML = '<div class="station-search-message is-error">未能載入巴士站，請稍後再試。</div>';
+        }
+    };
+    const openDropdown = () => {
+        document.getElementById('station-dropdown')?.classList.add('hidden');
+        document.getElementById('station-search')?.setAttribute('aria-expanded', 'false');
+        window.loadKmbStopCatalog().catch(error => console.error('Unable to load bus stop catalog:', error));
+        void searchStops();
+    };
+
+    search.addEventListener('focus', openDropdown);
+    search.addEventListener('click', openDropdown);
+    search.addEventListener('input', () => {
+        clearTimeout(titleStopSearchTimer);
+        titleStopSearchTimer = window.setTimeout(searchStops, 220);
+    });
+    search.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+            closeDropdown();
+            search.blur();
+        }
+    });
+    document.addEventListener('click', event => {
+        if (!document.getElementById('stop-search-wrapper')?.contains(event.target)) closeDropdown();
+    });
+    list.addEventListener('click', event => {
+        const stop = event.target.closest('.title-stop-search-result');
+        if (!stop) return;
+        openStopEtaWindow(stop.dataset.stopId, stop.dataset.stopName, stop.dataset.stopCode, stop.dataset.company);
+        closeDropdown();
     });
 }
 
@@ -724,7 +901,7 @@ async function processStopGroup(stopGroup) {
                 } else if (item.rmk_tc) {
                     const cleanedRmk = cleanRemark(item.rmk_tc);
                     if (index === 0) {
-                        destRemarkHtml = `<span class="dest-remark dest-remark-marquee"><span class="marquee-inner">⚠${cleanedRmk}</span></span>`;
+                        destRemarkHtml = createMarqueeHtml(`⚠${cleanedRmk}`, 'dest-remark dest-remark-marquee');
                     } else {
                         remarkText = formatRemark(cleanedRmk);
                     }
@@ -847,7 +1024,7 @@ async function processStopGroup(stopGroup) {
             }
 
             let destClass = 'dest';
-            let destTextClass = 'dest-text';
+            let destTextClass = group.company === 'GMB' ? 'dest-text' : 'dest-text dest-text-marquee';
 
             let destContent = '';
             if (group.company === 'GMB') {
@@ -862,7 +1039,7 @@ async function processStopGroup(stopGroup) {
                 destContent = `<span class="${destTextClass}">${group.dest} ${destRemarkHtml}</span>${gmbUpdateHtml}`;
             } else {
                 destContent = `
-                    <span class="${destTextClass}">${group.dest} ${groupStopCodeHtml}</span> 
+                    <span class="${destTextClass}"><span class="dest-main-line">${createMarqueeHtml(group.dest, 'dest-name-marquee')} ${groupStopCodeHtml}</span></span>
                     <div class="dest-sub-info">
                         <span class="stop-info">${stopCodeHtml}</span>
                         ${destRemarkHtml}
@@ -1030,6 +1207,7 @@ setInterval(() => {
 updateClock();
 updateDayCountdown();
 initializeStationSearch();
+initializeTitleStopSearch();
 
 document.addEventListener('click', event => {
     const routeLink = event.target.closest('.route-link');

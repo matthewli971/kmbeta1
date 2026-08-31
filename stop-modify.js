@@ -11,10 +11,13 @@
     const searchResultStore = new Map();
     const routeStopSearchCache = new Map();
     const searchTimers = new Map();
-    let kmbStopCatalogPromise = null;
     let draftConfig = null;
     let pendingImportConfig = null;
     const REQUIRED_FIELDS_ERROR = '請填寫標示紅色的必填資料。';
+    const APP_TITLE_MAX_CHARACTERS = 20;
+    const APP_TITLE_MAX_WIDTH = 140;
+    const FULL_WIDTH_CHARACTER_WIDTH = 10;
+    const HALF_WIDTH_CHARACTER_WIDTH = 7;
     let invalidFields = [];
     let invalidFieldIndex = -1;
 
@@ -29,6 +32,37 @@
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
+    }
+
+    function isFullWidthCharacter(character) {
+        return /[\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE10-\uFE6F\uFF01-\uFF60\uFFE0-\uFFE6]/u.test(character)
+            || character.codePointAt(0) > 0xFFFF;
+    }
+
+    function getAppTitleWidth(title) {
+        return [...String(title ?? '')].reduce((width, character) =>
+            width + (isFullWidthCharacter(character) ? FULL_WIDTH_CHARACTER_WIDTH : HALF_WIDTH_CHARACTER_WIDTH), 0);
+    }
+
+    function truncateAppTitle(title) {
+        const characters = [...String(title ?? '')].slice(0, APP_TITLE_MAX_CHARACTERS);
+        let width = 0;
+        let result = '';
+        for (const character of characters) {
+            const characterWidth = isFullWidthCharacter(character) ? FULL_WIDTH_CHARACTER_WIDTH : HALF_WIDTH_CHARACTER_WIDTH;
+            if (width + characterWidth > APP_TITLE_MAX_WIDTH) break;
+            width += characterWidth;
+            result += character;
+        }
+        return result;
+    }
+
+    function normalizePinnedRoutes(value) {
+        const routes = Array.isArray(value) ? value : String(value ?? '').split(/[,，]/);
+        const normalizedRoutes = [...new Set(routes
+            .map(route => String(route || '').trim().toUpperCase())
+            .filter(Boolean))];
+        return normalizedRoutes.length ? normalizedRoutes : null;
     }
 
     function makeDraftId(prefix) {
@@ -59,7 +93,7 @@
             throw new Error('設定檔格式不正確。');
         }
 
-        const appTitle = String(candidate.APP_TITLE ?? '').trim();
+        const appTitle = truncateAppTitle(String(candidate.APP_TITLE ?? '').trim());
         if (!appTitle) throw new Error('請填寫顯示標題。');
         if (!Array.isArray(candidate.STOPS)) throw new Error('設定檔缺少 STOPS 車站資料。');
 
@@ -102,7 +136,7 @@
                 stops: normalizedStops,
                 filter: Array.isArray(group.filter) ? cloneJson(group.filter) : null,
                 exclude: Array.isArray(group.exclude) ? cloneJson(group.exclude) : null,
-                pin: Array.isArray(group.pin) ? cloneJson(group.pin) : null
+                pin: normalizePinnedRoutes(group.pin)
             };
         });
 
@@ -274,7 +308,11 @@
         return `<div class="station-selected-stop" data-group-id="${escapeMarkup(group._draftId)}" data-stop-id="${escapeMarkup(stop._draftId)}">
             <div class="station-selected-stop-name">
                 ${renderSearchCompanyBadges(stop.type)}
-                ${renderStopNameWithCode({ name: displayStopName(stop), code: stop.code, type: stop.type }, { stopLabel: stop.label, labelBeforeCode: true })}
+                ${renderStopNameWithCode({ name: displayStopName(stop), code: stop.code, type: stop.type }, {
+                    stopLabel: stop.label,
+                    labelBeforeCode: true,
+                    labelControl: { groupId: group._draftId, stopId: stop._draftId }
+                })}
             </div>
             <div class="station-selected-stop-actions">
                 <div class="station-config-tag-control">
@@ -310,7 +348,7 @@
                 </header>
                 <div class="station-search-control">
                     <label class="station-config-field station-config-search-field">
-                        <input type="search" autocomplete="off" placeholder="增加車站: 輸入站名、站號或路線編號" value="${escapeMarkup(group._query || '')}" data-field="stop-search" data-group-id="${escapeMarkup(group._draftId)}" aria-label="搜尋第 ${groupIndex + 1} 個群組的巴士站">
+                        <input type="search" autocomplete="off" placeholder="增加車站: 輸入站名、車站編號或路線編號" value="${escapeMarkup(group._query || '')}" data-field="stop-search" data-group-id="${escapeMarkup(group._draftId)}" aria-label="搜尋第 ${groupIndex + 1} 個群組的巴士站">
                     </label>
                     <div class="station-stop-search-results" data-group-id="${escapeMarkup(group._draftId)}" aria-live="polite"></div>
                 </div>
@@ -319,6 +357,10 @@
                         ? group.stops.map((stop, stopIndex) => renderSelectedStop(group, stop, stopIndex)).join('')
                         : '<div class="station-selected-stop station-selected-stop-empty">尚未選擇巴士站</div>'}
                 </div>
+                <label class="station-config-field station-config-pin-field">
+                    <span>置頂線路</span>
+                    <input type="text" placeholder="(選填) 若要註明方向請在後加'|[I/O]' e.g. A22|O" value="${escapeMarkup((group.pin || []).join(', '))}" data-field="pinned-routes" data-group-id="${escapeMarkup(group._draftId)}" aria-label="第 ${groupIndex + 1} 個車站群組的置頂線路">
+                </label>
             </article>`).join('');
     }
 
@@ -438,7 +480,7 @@
             <section class="popup-window station-config-window" role="dialog" aria-modal="true" aria-label="修改車站">
                 <header class="station-config-header">
                     <div class="station-config-header-title">
-                        <input id="station-config-title" class="station-config-title-input" type="text" maxlength="100" value="${escapeMarkup(draftConfig.APP_TITLE)}" data-field="app-title" placeholder="頁面標題" aria-label="頁面標題">
+                        <input id="station-config-title" class="station-config-title-input" type="text" maxlength="20" value="${escapeMarkup(draftConfig.APP_TITLE)}" data-field="app-title" placeholder="頁面標題" aria-label="頁面標題">
                     </div>
                     <div class="station-config-header-actions">
                         <button class="station-config-secondary-button" type="button" data-action="import">匯入</button>
@@ -560,7 +602,7 @@
         return type === 'CTB' ? stopCode.replace(/^0+(?=\d)/, '') : stopCode;
     }
 
-    function renderStopNameWithCode(result, { stopLabel = '', labelBeforeCode = false } = {}) {
+    function renderStopNameWithCode(result, { stopLabel = '', labelBeforeCode = false, labelControl = null } = {}) {
         const name = String(result.name || result.id || '').trim();
         const code = formatStopCodeForSearch(result.type, result.code);
         const codeAlreadyVisible = code && (
@@ -568,8 +610,10 @@
             || normalizedStationCode(name) === normalizedStationCode(code)
             || new RegExp(`\\(${escapeRegExp(code)}\\)$`, 'i').test(name)
         );
-        const labelHtml = stopLabel
-            ? `<span class="station-stop-custom-label">${escapeMarkup(stopLabel)}</span>`
+        const labelHtml = stopLabel && labelControl
+            ? `<span class="station-stop-label-control"><button class="station-stop-custom-label station-stop-custom-label-button" type="button" data-action="toggle-stop-label-remove" data-group-id="${escapeMarkup(labelControl.groupId)}" data-stop-id="${escapeMarkup(labelControl.stopId)}" aria-expanded="false">${escapeMarkup(stopLabel)}</button></span>`
+            : stopLabel
+                ? `<span class="station-stop-custom-label">${escapeMarkup(stopLabel)}</span>`
             : '';
         const codeHtml = code && !codeAlreadyVisible
             ? `<span class="stop-eta-code">${escapeMarkup(code)}</span>`
@@ -648,20 +692,6 @@
         return 3;
     }
 
-    function compareStopSearchResults(a, b, query) {
-        const rankDifference = getStationCodeMatchRank(a.code, query) - getStationCodeMatchRank(b.code, query);
-        if (rankDifference) return rankDifference;
-
-        const nameDifference = String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant');
-        if (nameDifference) return nameDifference;
-
-        return normalizedStationCode(a.code).localeCompare(
-            normalizedStationCode(b.code),
-            'en',
-            { numeric: true, sensitivity: 'base' }
-        );
-    }
-
     function extractKmbStopCode(name) {
         return String(name ?? '').match(/\s*\(([A-Z]{1,4}\d{1,4}[A-Z]?)\)\s*$/i)?.[1] || '';
     }
@@ -697,22 +727,10 @@
         return payload.data;
     }
 
-    async function loadKmbStopCatalog() {
-        if (!kmbStopCatalogPromise) {
-            kmbStopCatalogPromise = fetchData(api.kmb.stop)
-                .then(data => Array.isArray(data) ? data : [])
-                .catch(error => {
-                    kmbStopCatalogPromise = null;
-                    throw error;
-                });
-        }
-        return kmbStopCatalogPromise;
-    }
-
     async function loadStopDisplayName(stop) {
         if (!stop?.id) return '';
         if (stop.type === 'KMB') {
-            const catalog = await loadKmbStopCatalog();
+            const catalog = await window.loadKmbStopCatalog();
             const detail = catalog.find(item => String(item.stop) === String(stop.id));
             return getKmbStopDisplayName(detail);
         }
@@ -728,7 +746,11 @@
         const selector = `.station-selected-stop[data-group-id="${CSS.escape(group._draftId)}"][data-stop-id="${CSS.escape(stop._draftId)}"]`;
         const summaryName = document.querySelector(selector)?.querySelector('.station-selected-stop-name');
         if (summaryName) {
-            summaryName.innerHTML = `${renderSearchCompanyBadges(stop.type)}${renderStopNameWithCode({ name: displayStopName(stop), code: stop.code, type: stop.type }, { stopLabel: stop.label, labelBeforeCode: true })}`;
+            summaryName.innerHTML = `${renderSearchCompanyBadges(stop.type)}${renderStopNameWithCode({ name: displayStopName(stop), code: stop.code, type: stop.type }, {
+                stopLabel: stop.label,
+                labelBeforeCode: true,
+                labelControl: { groupId: group._draftId, stopId: stop._draftId }
+            })}`;
         }
     }
 
@@ -763,7 +785,7 @@
     async function searchKmbStops(query) {
         const queryText = normalizedText(query);
         if (!queryText) return [];
-        const catalog = await loadKmbStopCatalog();
+        const catalog = await window.loadKmbStopCatalog();
         return catalog
             .map(stop => {
                 const code = extractKmbStopCode(stop.name_tc) || extractKmbStopCode(stop.name_en) || stop.stop;
@@ -775,7 +797,7 @@
                 return { stop, code, name, codeRank };
             })
             .filter(Boolean)
-            .sort((a, b) => compareStopSearchResults(a, b, query))
+            .sort((a, b) => window.compareBusStopSearchResults(a, b, query))
             .map(match => asStopChoice('KMB', match.stop.stop, match.code, match.name));
     }
 
@@ -822,7 +844,7 @@
         if (routeResult.status === 'fulfilled') results.push(...routeResult.value);
         const stationResults = results
             .filter(result => result.kind === 'stop')
-            .sort((a, b) => compareStopSearchResults(a, b, query));
+            .sort((a, b) => window.compareBusStopSearchResults(a, b, query));
         const routeResults = results.filter(result => result.kind === 'route');
         return [...stationResults, ...routeResults];
     }
@@ -867,7 +889,7 @@
     }
 
     async function getKmbRouteStopChoices(route) {
-        const catalog = await loadKmbStopCatalog();
+        const catalog = await window.loadKmbStopCatalog();
         const byId = new Map(catalog.map(stop => [String(stop.stop), stop]));
         const results = await Promise.all(['outbound', 'inbound'].map(async direction => {
             try {
@@ -1000,7 +1022,36 @@
     }
 
     function closeStopLabelDialog() {
+        document.querySelector('.station-stop-custom-label-button[aria-expanded="true"]')?.setAttribute('aria-expanded', 'false');
         document.querySelector('.station-label-dialog')?.remove();
+        document.querySelector('.station-label-remove-badge')?.remove();
+    }
+
+    function toggleStopLabelRemoveBadge(groupId, stopId, trigger) {
+        const stop = findDraftStop(groupId, stopId);
+        if (!stop?.label || !trigger) return;
+        const existingBadge = document.querySelector('.station-label-remove-badge');
+        if (existingBadge?.parentElement === trigger.closest('.station-stop-label-control')) {
+            closeStopLabelDialog();
+            return;
+        }
+
+        closeStopLabelDialog();
+        const badge = document.createElement('span');
+        badge.className = 'station-label-remove-badge';
+        badge.innerHTML = `<button type="button" data-action="remove-stop-label" data-group-id="${escapeMarkup(groupId)}" data-stop-id="${escapeMarkup(stopId)}" title="移除車站標籤" aria-label="移除車站標籤">×</button>`;
+        trigger.closest('.station-stop-label-control')?.appendChild(badge);
+        trigger.setAttribute('aria-expanded', 'true');
+    }
+
+    function removeStopLabel(groupId, stopId) {
+        const group = findDraftGroup(groupId);
+        const stop = findDraftStop(groupId, stopId);
+        if (!group || !stop) return;
+        stop.label = null;
+        closeStopLabelDialog();
+        renderSelectedStopList(group);
+        setFormStatus('已清除車站標籤。', 'success');
     }
 
     function openStopLabelDialog(groupId, stopId) {
@@ -1323,7 +1374,9 @@
                 clearInvalidField(event.target);
             }
             if (field === 'app-title') {
-                draftConfig.APP_TITLE = event.target.value;
+                const title = truncateAppTitle(event.target.value);
+                if (event.target.value !== title) event.target.value = title;
+                draftConfig.APP_TITLE = title;
                 return;
             }
             const group = findDraftGroup(event.target.dataset.groupId);
@@ -1332,20 +1385,34 @@
                 group.name = event.target.value;
                 return;
             }
+            if (field === 'pinned-routes') {
+                group.pin = normalizePinnedRoutes(event.target.value);
+                return;
+            }
             if (field === 'stop-search') scheduleStopSearch(event.target);
         });
 
         overlay.addEventListener('click', event => {
+            const searchInput = event.target.closest('input[data-field="stop-search"]');
+            if (searchInput) scheduleStopSearch(searchInput);
+
             const labelDialog = overlay.querySelector('.station-label-dialog');
-            if (labelDialog
-                && !labelDialog.contains(event.target)
-                && !event.target.closest('.station-config-tag-button')) {
+            const labelRemoveBadge = overlay.querySelector('.station-label-remove-badge');
+            if ((labelDialog || labelRemoveBadge)
+                && !labelDialog?.contains(event.target)
+                && !labelRemoveBadge?.contains(event.target)
+                && !event.target.closest('.station-config-tag-button, .station-stop-custom-label-button')) {
                 closeStopLabelDialog();
             }
             if (event.target === overlay) {
                 requestCloseConfigurationWindow();
                 return;
             }
+            overlay.querySelectorAll('.station-search-control').forEach(searchControl => {
+                if (!searchControl.contains(event.target)) {
+                    closeSearchResults(searchControl.querySelector('[data-field="stop-search"]')?.dataset.groupId);
+                }
+            });
             const control = event.target.closest('[data-action]');
             if (!control) return;
             const { action, groupId, stopId, resultKey } = control.dataset;
@@ -1362,6 +1429,10 @@
                 clearStopSelection(groupId, stopId);
             } else if (action === 'edit-stop-label') {
                 openStopLabelDialog(groupId, stopId);
+            } else if (action === 'toggle-stop-label-remove') {
+                toggleStopLabelRemoveBadge(groupId, stopId, control);
+            } else if (action === 'remove-stop-label') {
+                removeStopLabel(groupId, stopId);
             } else if (action === 'save-stop-label') {
                 saveStopLabel(groupId, stopId);
             } else if (action === 'cancel-stop-label') {
@@ -1424,12 +1495,6 @@
                     closeImportConfirmation();
                 }
             }
-        });
-
-        overlay.addEventListener('mouseout', event => {
-            const searchControl = event.target.closest('.station-search-control');
-            if (!searchControl || !overlay.contains(searchControl) || searchControl.contains(event.relatedTarget)) return;
-            searchControl.querySelector('.station-stop-search-results')?.style.setProperty('display', 'none');
         });
 
         overlay.addEventListener('focusin', event => {

@@ -40,6 +40,12 @@
                                 <div id="station-list"></div>
                             </div>
                         </div>
+                        <div id="stop-search-wrapper">
+                            <input type="search" id="title-stop-search" placeholder="搜尋巴士站" autocomplete="off" aria-label="搜尋巴士站" aria-controls="title-stop-dropdown" aria-expanded="false">
+                            <div id="title-stop-dropdown" class="hidden" role="listbox" aria-label="巴士站搜尋結果">
+                                <div id="title-stop-list"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <main id="monitor-content">

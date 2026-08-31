@@ -24,6 +24,16 @@ window.isStopEtaRouteAllowed = function isStopEtaRouteAllowed(route, dir, stopGr
     return true;
 };
 
+window.extractViaPoints = function extractViaPoints(placeName) {
+    const viaPoints = [];
+    const name = String(placeName || '').replace(/[（(]\s*經\s*[:：]?\s*([^()（）]*?)[）)]/g, (match, viaPoint) => {
+        const point = viaPoint.trim().replace(/\s+/g, ' ');
+        if (point) viaPoints.push(point);
+        return '';
+    }).replace(/\s{2,}/g, ' ').trim();
+    return { name, viaPoints };
+};
+
 window.formatTimeHtmlMinMode = function formatTimeHtmlMinMode(timestamp) {
     if (!timestamp) return '-';
     const date = new Date(timestamp);
@@ -60,4 +70,24 @@ window.formatDuration = function formatDuration(timestamp, remark) {
 
     if (diffMins < 1) return '<span class="arriving-text">進站中</span>';
     return `${diffMins} m`;
+};
+
+window.renderPopupEtaItem = function renderPopupEtaItem(eta, { showOperatorBorder = false } = {}) {
+    const etaDate = eta.eta ? new Date(eta.eta) : null;
+    const hasEta = Boolean(eta.eta) && !Number.isNaN(etaDate?.getTime());
+    const diffMins = hasEta ? Math.floor((etaDate - new Date()) / 60000) : null;
+    const isArriving = hasEta && diffMins < 1;
+    const isScheduled = eta.rmk_tc === '原定班次' || eta.rmk_tc === '未開出';
+    const minClass = isArriving ? 'text-green' : isScheduled ? 'text-grey' : hasEta && diffMins < 5 ? 'text-light-green' : hasEta ? 'text-yellow' : 'text-grey';
+    const tagClass = isArriving ? 'text-black bold' : !hasEta || isScheduled || diffMins >= 30 ? 'text-grey' : 'text-white bold';
+    const remark = isScheduled ? '預定' : eta.rmk_tc === '最後班次' ? '尾班' : '';
+    const borderClass = showOperatorBorder && eta._co === 'KMB'
+        ? ' eta-border-kmb'
+        : showOperatorBorder && eta._co === 'CTB'
+            ? ' eta-border-ctb'
+            : '';
+    return `<div class="eta-item route-window-eta-item${isArriving ? ' arriving' : ''}${borderClass}">
+        <div class="eta-large ${minClass}"><span class="time-text-b${isArriving ? ' bold' : ''}" data-timestamp="${escapeHtml(eta.eta)}" data-remark="${escapeHtml(eta.rmk_tc || '')}">${formatDuration(eta.eta, eta.rmk_tc)}</span></div>
+        <div class="eta-small"><span class="eta-remark-tag ${tagClass}">${formatTimeHtmlMinMode(eta.eta)}</span> <span class="eta-remark-tag-small ${tagClass}">${remark}</span></div>
+    </div>`;
 };
