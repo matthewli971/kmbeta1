@@ -606,8 +606,8 @@
         const name = String(result.name || result.id || '').trim();
         const code = formatStopCodeForSearch(result.type, result.code);
         const codeAlreadyVisible = code && (
-            normalizedText(name) === normalizedText(code)
-            || normalizedStationCode(name) === normalizedStationCode(code)
+            window.busStopSearch.normalizeText(name) === window.busStopSearch.normalizeText(code)
+            || window.busStopSearch.normalizeCode(name) === window.busStopSearch.normalizeCode(code)
             || new RegExp(`\\(${escapeRegExp(code)}\\)$`, 'i').test(name)
         );
         const labelHtml = stopLabel && labelControl
@@ -668,55 +668,21 @@
         positionSearchResults(target);
     }
 
-    function normalizedText(value) {
-        return String(value ?? '').trim().toLocaleLowerCase().replace(/\s+/g, '');
-    }
-
     function isEnglishOrNumberQuery(value) {
         const query = String(value ?? '').trim();
         return Boolean(query) && /^[A-Za-z0-9\s-]+$/.test(query);
     }
 
-    function normalizedStationCode(value) {
-        const code = normalizedText(value);
-        return /^\d+$/.test(code) ? code.replace(/^0+(?=\d)/, '') : code;
-    }
-
-    function getStationCodeMatchRank(code, query) {
-        const stationCode = normalizedStationCode(code);
-        const searchCode = normalizedStationCode(query);
-        if (!stationCode || !searchCode) return 3;
-        if (stationCode === searchCode) return 0;
-        if (stationCode.startsWith(searchCode)) return 1;
-        if (stationCode.includes(searchCode)) return 2;
-        return 3;
-    }
-
     function extractKmbStopCode(name) {
-        return String(name ?? '').match(/\s*\(([A-Z]{1,4}\d{1,4}[A-Z]?)\)\s*$/i)?.[1] || '';
-    }
-
-    function removeKmbStopCode(name) {
-        return String(name ?? '').replace(/\s*\([A-Z]{1,4}\d{1,4}[A-Z]?\)\s*$/i, '').trim();
+        return window.busStopSearch.getKmbStopCode(name);
     }
 
     function getKmbStopDisplayName(stop) {
-        const rawName = stop?.name_tc || stop?.name_en || '';
-        return removeKmbStopCode(rawName);
-    }
-
-    function formatCtbStopSearchName(name) {
-        const stopName = String(name || '').trim();
-        if (window.getShowCtbStopStreetName?.()) return stopName;
-        const separatorIndex = stopName.lastIndexOf(', ');
-        return separatorIndex >= 0 && stopName.slice(separatorIndex + 2).trim()
-            ? stopName.slice(0, separatorIndex).trimEnd()
-            : stopName;
+        return window.busStopSearch.getKmbStopName(stop);
     }
 
     function getCtbStopDisplayName(stop) {
-        const rawName = stop?.name_tc || stop?.name_en || '';
-        return formatCtbStopSearchName(rawName);
+        return window.busStopSearch.getCtbStopName(stop);
     }
 
     async function fetchData(url) {
@@ -783,16 +749,16 @@
     }
 
     async function searchKmbStops(query) {
-        const queryText = normalizedText(query);
+        const queryText = window.busStopSearch.normalizeText(query);
         if (!queryText) return [];
         const catalog = await window.loadKmbStopCatalog();
         return catalog
             .map(stop => {
                 const code = extractKmbStopCode(stop.name_tc) || extractKmbStopCode(stop.name_en) || stop.stop;
                 const name = getKmbStopDisplayName(stop) || String(stop.stop);
-                const codeRank = getStationCodeMatchRank(code, query);
+                const codeRank = window.busStopSearch.getCodeMatchRank(code, query);
                 const codeMatches = codeRank < 3;
-                const nameMatches = normalizedText(`${name} ${stop.name_tc} ${stop.name_en}`).includes(queryText);
+                const nameMatches = window.busStopSearch.normalizeText(`${name} ${stop.name_tc} ${stop.name_en}`).includes(queryText);
                 if (!codeMatches && !nameMatches) return null;
                 return { stop, code, name, codeRank };
             })
@@ -819,13 +785,13 @@
 
     async function searchRoutes(query) {
         if (typeof loadRouteSearchRoutes !== 'function') return [];
-        const queryText = normalizedText(query);
+        const queryText = window.busStopSearch.normalizeText(query);
         if (!queryText) return [];
         const routes = await loadRouteSearchRoutes();
         return (routes || [])
             .filter(route => {
-                const routeNo = normalizedText(route.route);
-                const journey = normalizedText(`${route.origin} ${route.destination}`);
+                const routeNo = window.busStopSearch.normalizeText(route.route);
+                const journey = window.busStopSearch.normalizeText(`${route.origin} ${route.destination}`);
                 return routeNo.startsWith(queryText) || journey.includes(queryText);
             })
             .slice(0, 6)

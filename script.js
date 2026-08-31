@@ -438,6 +438,15 @@ function getCtbBusStopSearchName(stop) {
         : name;
 }
 
+window.busStopSearch = {
+    normalizeText: normalizeBusStopSearchText,
+    normalizeCode: normalizeBusStopSearchCode,
+    getCodeMatchRank: getBusStopCodeMatchRank,
+    getKmbStopCode: getKmbBusStopCode,
+    getKmbStopName: getKmbBusStopSearchName,
+    getCtbStopName: getCtbBusStopSearchName
+};
+
 window.loadKmbStopCatalog = async function loadKmbStopCatalog() {
     if (!sharedKmbStopCatalogPromise) {
         sharedKmbStopCatalogPromise = fetch(`${window.API_ENDPOINTS.kmb.stop}?t=${Date.now()}`, { cache: 'no-store' })
