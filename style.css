@@ -936,7 +936,6 @@ body {
     box-sizing: border-box;
     overflow: hidden;
     border: 1px solid #555;
-    border-radius: 18px;
     background: #111;
     box-shadow: 0 16px 48px rgb(0 0 0 / 70%);
 }
@@ -960,10 +959,9 @@ body {
 .route-window-actions {
     display: flex;
     align-items: center;
-    gap: 4px;
 }
 
-.route-window-title { font-size: 1.2rem; font-weight: bold; min-width: 0; }
+.route-window-title { font-weight: bold; min-width: 0; }
 .route-window-route { color: var(--color-text); font-size: var(--font-route); }
 .route-window-route .route-suffix { font-size: 0.75em; }
 .route-company-badge {
@@ -1075,8 +1073,6 @@ body {
 
 .route-window-close {
     position: absolute;
-    top: 12px;
-    right: 12px;
     width: 34px;
     height: 34px;
     border: 0;
@@ -1157,15 +1153,14 @@ body {
     color: var(--color-text);
     border-color: var(--color-ctb);
 }
-.route-stop-times { display: table-cell; width: calc(84px * var(--popup-eta-column-count)); min-width: calc(84px * var(--popup-eta-column-count)); text-align: left; white-space: nowrap; }
-.route-stop-times .eta-item { display: inline-flex; width: 84px; vertical-align: middle; }
+.route-stop-times { display: table-cell; text-align: left; white-space: nowrap; }
+.route-stop-times .eta-item { display: inline-flex; vertical-align: middle; }
 .route-stop-times .eta-large,
 .route-stop-times .eta-small { white-space: nowrap; }
 .route-stop-times .eta-remark-tag { font-size: var(--font-win-eta-time); }
 .route-stop-times .eta-item.arriving .eta-remark-tag { font-weight: bold; }
 .route-stop-no-eta {
     display: inline-flex;
-    width: 84px;
     justify-content: center;
     box-sizing: border-box;
     vertical-align: middle;
@@ -1518,12 +1513,6 @@ input:checked + .slider:before {
 
 .eta-small .time-seconds {
     font-size: var(--font-eta-small-seconds);
-}
-
-.header-controls {
-    display: flex;
-    align-items: center;
-    gap: 20px;
 }
 
 .eta-item-last { display: none; }
