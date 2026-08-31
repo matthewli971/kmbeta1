@@ -191,9 +191,9 @@ function renderDirectionIcon() {
 
 function createRouteWindow() {
     const overlay = document.createElement('div');
-    overlay.className = 'route-window-overlay route-eta-window-overlay';
+    overlay.className = 'popup-window-overlay route-eta-window-overlay';
     overlay.innerHTML = `
-        <section class="route-window" role="dialog" aria-modal="true" aria-label="路線到站時間">
+        <section class="popup-window route-window" role="dialog" aria-modal="true" aria-label="路線到站時間">
             <header class="route-window-header">
                 <div class="route-window-title"></div>
                 <div class="route-window-actions">
@@ -491,6 +491,7 @@ async function loadRouteWindow(loadVariations = true, silent = false) {
             if (!routeWindowState || routeWindowState !== state || state.requestId !== requestId) return;
             const renderKmbTable = (otherEtaBySequence = new Map(), otherStopCodesBySequence = new Map(), showOperatorBorder = false) => {
                 title.innerHTML = renderRouteTitle(route, state.routeInfo, state.company, state.companies);
+                let maximumEtaCount = 0;
                 const rows = (routeStops || []).map((stop, index) => {
                     const detail = stopDetails[index];
                     const name = detail?.name_tc || detail?.name_en || stop.stop;
@@ -506,11 +507,13 @@ async function loadRouteWindow(loadVariations = true, silent = false) {
                         ? `<span class="route-stop-code">${stopCode ? `<button class="route-stop-info-button" type="button" data-company="KMB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(displayName)}" data-stop-code="${escapeHtml(stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(displayName)}到站時間">${escapeHtml(stopCode)}</button>` : ''}${interchangeName ? `<span class="route-stop-interchange">${stopCode ? ' ' : ''}${escapeHtml(interchangeName)}</span>` : ''}${renderOtherRouteStopCode(otherStopCode, state.company, displayName)}</span>`
                         : '';
                     const etas = getRouteWindowEtas(primaryEtaBySequence, otherEtaBySequence, String(stop.seq));
+                    maximumEtaCount = Math.max(maximumEtaCount, etas.length);
                     const etaHtml = etas.length
                         ? etas.map(eta => renderRouteStopEta(eta, showOperatorBorder)).join('')
                         : '<span class="route-stop-no-eta">暫無班次</span>';
                     return `<tr data-stop-seq="${escapeHtml(stop.seq)}"><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name"><span class="route-stop-name-text">${escapeHtml(displayName)}</span>${stopCodeHtml}</td><td class="route-stop-times">${etaHtml}</td></tr>`;
                 }).join('');
+                setPopupEtaColumnCount(overlay.querySelector('.popup-window'), maximumEtaCount);
                 content.innerHTML = `<table class="route-stop-table"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">未能取得站點資料。</td></tr>'}</tbody></table>`;
             };
             otherRouteLoader.setRenderer(renderKmbTable);
@@ -554,16 +557,19 @@ async function loadRouteWindow(loadVariations = true, silent = false) {
             });
             const renderCtbTable = (otherEtaBySequence = new Map(), otherStopCodesBySequence = new Map(), showOperatorBorder = false) => {
                 title.innerHTML = renderRouteTitle(route, state.routeInfo, state.company, state.companies, direction === 'I');
+                let maximumEtaCount = 0;
                 const rows = (routeStops || []).map((stop, index) => {
                     const detail = stopDetails[index];
                     const name = detail?.name_tc || detail?.name_en || stop.stop;
                     const displayName = formatCtbRouteStopName(name);
                     const etas = getRouteWindowEtas(primaryEtaBySequence, otherEtaBySequence, String(stop.seq));
+                    maximumEtaCount = Math.max(maximumEtaCount, etas.length);
                     const etaHtml = etas.length ? etas.map(eta => renderRouteStopEta(eta, showOperatorBorder)).join('') : '<span class="route-stop-no-eta">暫無班次</span>';
                     const displayStopCode = formatStopCodeForDisplay('CTB', stop.stop);
                     const stopCodeHtml = `<span class="route-stop-code"><button class="route-stop-info-button" type="button" data-company="CTB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(displayName)}" data-stop-code="${escapeHtml(stop.stop)}" title="查看本站到站時間" aria-label="查看${escapeHtml(displayName)}到站時間">${escapeHtml(displayStopCode)}</button>${renderOtherRouteStopCode(otherStopCodesBySequence.get(String(stop.seq)), state.company, displayName)}</span>`;
                     return `<tr data-stop-seq="${escapeHtml(stop.seq)}"><td class="route-stop-seq">${escapeHtml(stop.seq)}</td><td class="route-stop-name"><span class="route-stop-name-text">${escapeHtml(displayName)}</span>${stopCodeHtml}</td><td class="route-stop-times">${etaHtml}</td></tr>`;
                 }).join('');
+                setPopupEtaColumnCount(overlay.querySelector('.popup-window'), maximumEtaCount);
                 content.innerHTML = `<table class="route-stop-table"><tbody>${rows || '<tr><td class="route-window-message" colspan="3">未能取得站點資料。</td></tr>'}</tbody></table>`;
             };
             otherRouteLoader.setRenderer(renderCtbTable);

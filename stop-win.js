@@ -32,7 +32,7 @@ async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB', si
     let overlay = document.querySelector('.stop-eta-window-overlay');
     if (!silentRefresh) {
         overlay = document.createElement('div');
-        overlay.className = 'route-window-overlay stop-eta-window-overlay';
+        overlay.className = 'popup-window-overlay stop-eta-window-overlay';
     // Extract interchange badge like "XXX轉車站 - Name" and display badge inline
     let displayName = stopName || '';
     let interchangeBadgeHtml = '';
@@ -44,7 +44,7 @@ async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB', si
     }
 
     overlay.innerHTML = `
-        <section class="route-window stop-eta-window" role="dialog" aria-modal="true" aria-label="巴士站到站時間">
+        <section class="popup-window route-window stop-eta-window" role="dialog" aria-modal="true" aria-label="巴士站到站時間">
             <header class="route-window-header">
                 <div class="stop-eta-window-title" style="flex-direction:row;align-items:baseline;gap:8px"><span>${escapeHtml(displayName)}</span> ${interchangeBadgeHtml} ${stopCode ? `<span class="stop-eta-code">${escapeHtml(formatStopCodeForDisplay(company, stopCode))}</span>` : ''}</div>
                 <div class="route-window-actions">
@@ -107,6 +107,11 @@ async function openStopEtaWindow(stopId, stopName, stopCode, company = 'KMB', si
             return [...groupedItems.values()];
         })();
         const sortedDisplayItems = sortEtaGroupsByFirstArrival(displayItems);
+        const maximumEtaCount = sortedDisplayItems.reduce(
+            (maximum, item) => Math.max(maximum, Math.min(3, item.etas.length)),
+            0
+        );
+        setPopupEtaColumnCount(overlay.querySelector('.popup-window'), maximumEtaCount);
 
         const rows = sortedDisplayItems.map(item => {
             const firstEta = item.etas

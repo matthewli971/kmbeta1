@@ -1009,6 +1009,10 @@ async function render() {
 render();
 // Update every 30 seconds
 setInterval(render, 30000); 
+setInterval(() => {
+    void refreshRouteWindow();
+    void refreshStopEtaWindow();
+}, 30000);
 setInterval(updateClock, 1000); // Update clock every second
 setInterval(updateDayCountdown, 1000);
 setInterval(() => {

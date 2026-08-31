@@ -1,6 +1,6 @@
 // ===== Shared Application Data =====
 window.APP_CONFIG = Object.freeze({
-    version: 'v0.54',
+    version: 'v0.55',
     timeZone: 'Asia/Hong_Kong',
     apiLanguage: 'zh',
     mtrScheduleCacheTtlMs: 60000,

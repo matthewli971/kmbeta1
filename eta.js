@@ -197,6 +197,13 @@ function sortEtaGroupsByFirstArrival(groups) {
     });
 }
 
+function setPopupEtaColumnCount(popup, maximumEtaCount) {
+    if (!popup) return;
+    const columnCount = Math.max(0, Math.min(3, Number(maximumEtaCount) || 0));
+    popup.classList.toggle('popup-eta-columns-1', columnCount <= 1);
+    popup.classList.toggle('popup-eta-columns-2', columnCount === 2);
+}
+
 function deduplicateEtaRecords(etas) {
     const uniqueEtas = [];
     const seenTimes = new Set();

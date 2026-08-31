@@ -14,6 +14,9 @@
     let kmbStopCatalogPromise = null;
     let draftConfig = null;
     let pendingImportConfig = null;
+    const REQUIRED_FIELDS_ERROR = '請填寫標示紅色的必填資料。';
+    let invalidFields = [];
+    let invalidFieldIndex = -1;
 
     function cloneJson(value) {
         return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
@@ -268,24 +271,29 @@
     }
 
     function renderSelectedStop(group, stop, stopIndex) {
-        const labelHtml = stop.label
-            ? `<span class="station-stop-custom-label">${escapeMarkup(stop.label)}</span>`
-            : '';
         return `<div class="station-selected-stop" data-group-id="${escapeMarkup(group._draftId)}" data-stop-id="${escapeMarkup(stop._draftId)}">
             <div class="station-selected-stop-name">
                 ${renderSearchCompanyBadges(stop.type)}
-                ${renderStopNameWithCode({ name: displayStopName(stop), code: stop.code, type: stop.type })}
-                ${labelHtml}
+                ${renderStopNameWithCode({ name: displayStopName(stop), code: stop.code, type: stop.type }, { stopLabel: stop.label, labelBeforeCode: true })}
             </div>
             <div class="station-selected-stop-actions">
                 <div class="station-config-tag-control">
-                    <button class="station-config-tag-button" type="button" title="修改車站標籤" aria-label="修改第 ${stopIndex + 1} 個巴士站標籤" data-action="edit-stop-label" data-group-id="${escapeMarkup(group._draftId)}" data-stop-id="${escapeMarkup(stop._draftId)}">
+                    <button class="station-config-tag-button" type="button" title="修改車站標籤" data-action="edit-stop-label" data-group-id="${escapeMarkup(group._draftId)}" data-stop-id="${escapeMarkup(stop._draftId)}">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.59 13.41 11 3.83V3H4a1 1 0 0 0-1 1v7l9.59 9.59a2 2 0 0 0 2.82 0l5.18-5.18a2 2 0 0 0 0-2.82ZM7.5 7.5h.01" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/><circle cx="7.5" cy="7.5" r="1" fill="currentColor"/></svg>
                     </button>
                 </div>
-                <button class="station-config-close station-config-remove-group station-config-remove-group-button" type="button" title="移除巴士站" aria-label="移除第 ${stopIndex + 1} 個巴士站" data-action="remove-stop" data-group-id="${escapeMarkup(group._draftId)}" data-stop-id="${escapeMarkup(stop._draftId)}">×</button>
+                <button class="station-config-close station-config-remove-group station-config-remove-group-button" type="button" title="移除巴士站" data-action="remove-stop" data-group-id="${escapeMarkup(group._draftId)}" data-stop-id="${escapeMarkup(stop._draftId)}">×</button>
             </div>
         </div>`;
+    }
+
+    function renderSelectedStopList(group) {
+        const searchResults = getSearchResultElement(group._draftId);
+        const list = searchResults?.closest('.station-config-group')?.querySelector('.station-config-selected-stop-list');
+        if (!list) return;
+        list.innerHTML = group.stops.length
+            ? group.stops.map((stop, stopIndex) => renderSelectedStop(group, stop, stopIndex)).join('')
+            : '<div class="station-selected-stop station-selected-stop-empty">尚未選擇巴士站</div>';
     }
 
     function renderDraftGroups() {
@@ -321,6 +329,103 @@
         status.className = `station-config-status${tone ? ` is-${tone}` : ''}`;
     }
 
+    function getActiveInvalidFields() {
+        return invalidFields.filter(field => field?.isConnected && field.classList.contains('is-invalid'));
+    }
+
+    function renderValidationStatus() {
+        const status = document.querySelector('.station-config-status');
+        if (!status) return;
+
+        const currentField = invalidFields[invalidFieldIndex];
+        const activeFields = getActiveInvalidFields();
+        invalidFields = activeFields;
+        if (!activeFields.length) {
+            invalidFieldIndex = -1;
+            setFormStatus();
+            return;
+        }
+
+        const currentIndex = activeFields.indexOf(currentField);
+        invalidFieldIndex = currentIndex >= 0
+            ? currentIndex
+            : Math.min(Math.max(invalidFieldIndex, 0), activeFields.length - 1);
+        const total = activeFields.length;
+        status.className = 'station-config-status is-error';
+        status.innerHTML = `<span class="station-config-status-message">${escapeMarkup(REQUIRED_FIELDS_ERROR)}</span>
+            <span class="station-config-error-navigation">
+                <button class="station-config-error-nav-button" type="button" data-action="previous-error" title="上一個錯誤" ${total < 2 ? ' disabled' : ''}>▴</button>
+                <span class="station-config-error-count" aria-live="polite">${invalidFieldIndex + 1} / ${total}</span>
+                <button class="station-config-error-nav-button" type="button" data-action="next-error" title="下一個錯誤" ${total < 2 ? ' disabled' : ''}>▾</button>
+            </span>`;
+    }
+
+    function focusInvalidField(index) {
+        const activeFields = getActiveInvalidFields();
+        if (!activeFields.length) {
+            renderValidationStatus();
+            return;
+        }
+        invalidFields = activeFields;
+        invalidFieldIndex = ((index % activeFields.length) + activeFields.length) % activeFields.length;
+        renderValidationStatus();
+        const field = invalidFields[invalidFieldIndex];
+        field.scrollIntoView?.({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        field.focus?.({ preventScroll: true });
+    }
+
+    function clearInvalidField(element, updateStatus = true) {
+        if (!element) return;
+        element.classList.remove('is-invalid');
+        element.removeAttribute('aria-invalid');
+        if (element.dataset.validationTabindex) {
+            element.removeAttribute('tabindex');
+            delete element.dataset.validationTabindex;
+        }
+        if (updateStatus) renderValidationStatus();
+    }
+
+    function markInvalidField(element, invalidFields) {
+        if (!element) return;
+        element.classList.add('is-invalid');
+        element.setAttribute('aria-invalid', 'true');
+        if (element.matches?.('.station-selected-stop-empty') && !element.hasAttribute('tabindex')) {
+            element.setAttribute('tabindex', '-1');
+            element.dataset.validationTabindex = 'true';
+        }
+        if (!invalidFields.includes(element)) invalidFields.push(element);
+    }
+
+    function validateRequiredFields() {
+        document.querySelectorAll('.station-config-overlay .is-invalid')
+            .forEach(element => clearInvalidField(element, false));
+        invalidFields = [];
+        invalidFieldIndex = -1;
+        if (!draftConfig) return false;
+
+        const titleInput = document.querySelector('.station-config-overlay [data-field="app-title"]');
+        if (!String(draftConfig.APP_TITLE || '').trim()) {
+            markInvalidField(titleInput, invalidFields);
+        }
+
+        draftConfig.STOPS.forEach(group => {
+            const groupElement = document.querySelector(`.station-config-group[data-group-id="${CSS.escape(group._draftId)}"]`);
+            const groupNameInput = groupElement?.querySelector('[data-field="group-name"]');
+            if (!String(group.name || '').trim()) {
+                markInvalidField(groupNameInput, invalidFields);
+            }
+            if (!group.stops.length) {
+                markInvalidField(groupElement?.querySelector('.station-selected-stop-empty'), invalidFields);
+            }
+        });
+
+        if (!invalidFields.length) return true;
+
+        invalidFieldIndex = 0;
+        focusInvalidField(invalidFieldIndex);
+        throw new Error(REQUIRED_FIELDS_ERROR);
+    }
+
     function renderConfigurationWindow() {
         const oldOverlay = document.querySelector('.station-config-overlay');
         oldOverlay?.remove();
@@ -328,35 +433,28 @@
         pendingImportConfig = null;
 
         const overlay = document.createElement('div');
-        overlay.className = 'route-window-overlay station-config-overlay';
+        overlay.className = 'popup-window-overlay station-config-overlay';
         overlay.innerHTML = `
-            <section class="route-window station-config-window" role="dialog" aria-modal="true" aria-labelledby="station-config-title">
+            <section class="popup-window station-config-window" role="dialog" aria-modal="true" aria-label="修改車站">
                 <header class="station-config-header">
-                    <div>
-                        <h2 id="station-config-title">修改車站</h2>
+                    <div class="station-config-header-title">
+                        <input id="station-config-title" class="station-config-title-input" type="text" maxlength="100" value="${escapeMarkup(draftConfig.APP_TITLE)}" data-field="app-title" placeholder="頁面標題" aria-label="頁面標題">
                     </div>
                     <div class="station-config-header-actions">
-                        <button class="station-config-secondary-button" type="button" data-action="import">匯入設定</button>
-                        <button class="station-config-secondary-button" type="button" data-action="export">匯出目前資料</button>
+                        <button class="station-config-secondary-button" type="button" data-action="import">匯入</button>
+                        <button class="station-config-secondary-button" type="button" data-action="export">匯出</button>
+                        <button class="station-config-clear" type="button" data-action="clear">清空</button>
                         <button class="station-config-close" type="button" title="關閉" aria-label="關閉修改車站視窗" data-action="close">×</button>
                     </div>
                     <input class="station-config-file-input" type="file" accept=".js,.json,application/javascript,application/json,text/javascript" aria-label="選擇要匯入的設定檔">
                 </header>
                 <div class="station-config-body">
-                    <section class="station-config-title-field">
-                        <label class="station-config-field">
-                            <span>頁面顯示標題 <b aria-hidden="true">*</b></span>
-                            <input type="text" maxlength="100" value="${escapeMarkup(draftConfig.APP_TITLE)}" data-field="app-title" aria-describedby="station-config-title-help">
-                        </label>
-                    </section>
                     <div class="station-config-groups"></div>
                     <button class="station-config-add-group" type="button" data-action="add-group">＋ 新增車站群組</button>
                 </div>
                 <footer class="station-config-footer">
                     <div class="station-config-status" role="status" aria-live="polite"></div>
                     <div class="station-config-footer-actions">
-                        <button class="station-config-reset" type="button" data-action="reset">重設</button>
-                        <button class="station-config-clear" type="button" data-action="clear">清空</button>
                         <button class="station-config-save" type="button" data-action="save">儲存</button>
                         <button class="station-config-cancel" type="button" data-action="cancel">取消</button>
                     </div>
@@ -462,7 +560,7 @@
         return type === 'CTB' ? stopCode.replace(/^0+(?=\d)/, '') : stopCode;
     }
 
-    function renderStopNameWithCode(result) {
+    function renderStopNameWithCode(result, { stopLabel = '', labelBeforeCode = false } = {}) {
         const name = String(result.name || result.id || '').trim();
         const code = formatStopCodeForSearch(result.type, result.code);
         const codeAlreadyVisible = code && (
@@ -470,12 +568,28 @@
             || normalizedStationCode(name) === normalizedStationCode(code)
             || new RegExp(`\\(${escapeRegExp(code)}\\)$`, 'i').test(name)
         );
-        return `<span class="station-stop-name-with-code"><span class="station-stop-name-text">${escapeMarkup(name)}</span>${code && !codeAlreadyVisible ? `<span class="stop-eta-code">${escapeMarkup(code)}</span>` : ''}</span>`;
+        const labelHtml = stopLabel
+            ? `<span class="station-stop-custom-label">${escapeMarkup(stopLabel)}</span>`
+            : '';
+        const codeHtml = code && !codeAlreadyVisible
+            ? `<span class="stop-eta-code">${escapeMarkup(code)}</span>`
+            : '';
+        const suffixHtml = labelBeforeCode ? `${labelHtml}${codeHtml}` : `${codeHtml}${labelHtml}`;
+        return `<span class="station-stop-name-with-code"><span class="station-stop-name-text">${escapeMarkup(name)}</span>${suffixHtml}</span>`;
     }
 
     function renderSearchMessage(target, message, tone = '') {
         if (!target) return;
         target.innerHTML = `<div class="station-search-message${tone ? ` is-${tone}` : ''}">${escapeMarkup(message)}</div>`;
+        positionSearchResults(target);
+    }
+
+    function closeSearchResults(groupId) {
+        const target = getSearchResultElement(groupId);
+        if (!target) return;
+        const group = findDraftGroup(groupId);
+        if (group) group._searchRequestId = '';
+        target.innerHTML = '';
         positionSearchResults(target);
     }
 
@@ -494,7 +608,9 @@
         if (stopResults.length) {
             sections.push(`<div class="station-search-result-title">巴士站</div>${stopResults.map(result => {
                 const key = addSearchResult(result);
-                return `<button class="station-search-result" type="button" data-action="select-search-result" ${scopeAttributes} data-result-key="${escapeMarkup(key)}">${renderSearchCompanyBadges(result.type)}<span class="station-search-result-copy">${renderStopNameWithCode(result)}</span></button>`;
+                const isSelected = findDraftGroup(groupId)?.stops.some(stop => stop.id === result.id && stop.type === result.type);
+                const toggleLabel = isSelected ? '取消選擇巴士站' : '選擇巴士站';
+                return `<div class="station-search-result${isSelected ? ' is-selected' : ''}"><button class="station-search-result-add-icon" type="button" data-action="toggle-search-result" ${scopeAttributes} data-result-key="${escapeMarkup(key)}" aria-pressed="${isSelected ? 'true' : 'false'}" title="${toggleLabel}" aria-label="${toggleLabel}">${isSelected ? '−' : '+'}</button><button class="station-search-result-copy-button" type="button" data-action="select-search-result" ${scopeAttributes} data-result-key="${escapeMarkup(key)}" aria-label="選擇巴士站">${renderSearchCompanyBadges(result.type)}<span class="station-search-result-copy">${renderStopNameWithCode(result)}</span></button></div>`;
             }).join('')}`);
         }
         if (routeResults.length) {
@@ -612,10 +728,7 @@
         const selector = `.station-selected-stop[data-group-id="${CSS.escape(group._draftId)}"][data-stop-id="${CSS.escape(stop._draftId)}"]`;
         const summaryName = document.querySelector(selector)?.querySelector('.station-selected-stop-name');
         if (summaryName) {
-            const labelHtml = stop.label
-                ? `<span class="station-stop-custom-label">${escapeMarkup(stop.label)}</span>`
-                : '';
-            summaryName.innerHTML = `${renderSearchCompanyBadges(stop.type)}${renderStopNameWithCode({ name: displayStopName(stop), code: stop.code, type: stop.type })}${labelHtml}`;
+            summaryName.innerHTML = `${renderSearchCompanyBadges(stop.type)}${renderStopNameWithCode({ name: displayStopName(stop), code: stop.code, type: stop.type }, { stopLabel: stop.label, labelBeforeCode: true })}`;
         }
     }
 
@@ -848,13 +961,11 @@
 
     function chooseStop(groupId, choice) {
         const group = findDraftGroup(groupId);
-        if (!group) return;
+        if (!group) return false;
         const isDuplicate = group.stops.some(stop => stop.id === choice.id && stop.type === choice.type);
         if (isDuplicate) {
-            group._query = '';
-            renderDraftGroups();
             setFormStatus(`此${choice.type}巴士站已在群組內。`);
-            return;
+            return false;
         }
         group.stops.push({
             id: choice.id,
@@ -864,17 +975,24 @@
             _draftId: makeDraftId('stop'),
             _displayName: choice.name
         });
-        group._query = '';
-        if (!group.name.trim()) group.name = choice.name;
-        renderDraftGroups();
+        if (!group.name.trim()) {
+            group.name = choice.name;
+            const groupNameInput = getSearchResultElement(groupId)
+                ?.closest('.station-config-group')
+                ?.querySelector('[data-field="group-name"]');
+            if (groupNameInput) groupNameInput.value = group.name;
+        }
+        renderSelectedStopList(group);
         setFormStatus(`已選擇 ${choice.type} 巴士站：${choice.name}。`, 'success');
+        return true;
     }
 
-    function clearStopSelection(groupId, stopId) {
+    function clearStopSelection(groupId, stopId, preserveSearchResults = false) {
         const group = findDraftGroup(groupId);
         if (!group) return;
         group.stops = group.stops.filter(stop => stop._draftId !== stopId);
-        renderDraftGroups();
+        if (preserveSearchResults) renderSelectedStopList(group);
+        else renderDraftGroups();
     }
 
     function normalizeStopLabel(value) {
@@ -978,7 +1096,7 @@
         const date = new Date().toISOString().slice(0, 10);
         const anchor = document.createElement('a');
         anchor.href = url;
-        anchor.download = `kmbeta-index-${date}.js`;
+        anchor.download = `kmbeta1_index_${date}.js`;
         document.body.appendChild(anchor);
         anchor.click();
         anchor.remove();
@@ -1177,21 +1295,17 @@
 
     function saveDraftConfiguration() {
         try {
+            validateRequiredFields();
             const configuration = buildConfigurationFromDraft();
             applyRuntimeConfiguration(configuration);
             closeConfigurationWindow();
-        } catch (error) {
-            setFormStatus(error.message || '請完成必填資料。', 'error');
+        } catch {
+            if (getActiveInvalidFields().length) {
+                renderValidationStatus();
+            } else {
+                setFormStatus(REQUIRED_FIELDS_ERROR, 'error');
+            }
         }
-    }
-
-    function resetDraftConfiguration() {
-        draftConfig = prepareDraftConfiguration(captureCurrentConfiguration());
-        renderDraftGroups();
-        hydrateDraftStopNames(draftConfig);
-        const titleInput = document.querySelector('[data-field="app-title"]');
-        if (titleInput) titleInput.value = draftConfig.APP_TITLE;
-        setFormStatus('已重設未儲存的表單內容。');
     }
 
     function bindConfigurationWindow(overlay) {
@@ -1205,6 +1319,9 @@
         overlay.addEventListener('input', event => {
             const field = event.target.dataset.field;
             if (!field || !draftConfig) return;
+            if (field === 'app-title' || field === 'group-name') {
+                clearInvalidField(event.target);
+            }
             if (field === 'app-title') {
                 draftConfig.APP_TITLE = event.target.value;
                 return;
@@ -1249,8 +1366,32 @@
                 saveStopLabel(groupId, stopId);
             } else if (action === 'cancel-stop-label') {
                 closeStopLabelDialog();
+            } else if (action === 'previous-error') {
+                focusInvalidField(invalidFieldIndex - 1);
+            } else if (action === 'next-error') {
+                focusInvalidField(invalidFieldIndex + 1);
             } else if (action === 'clear-stop') {
                 clearStopSelection(groupId, stopId);
+            } else if (action === 'toggle-search-result') {
+                const result = searchResultStore.get(resultKey);
+                if (!result) return;
+                const group = findDraftGroup(groupId);
+                const selectedStop = group?.stops.find(stop => stop.id === result.id && stop.type === result.type);
+                if (selectedStop) {
+                    clearStopSelection(groupId, selectedStop._draftId, true);
+                    control.closest('.station-search-result')?.classList.remove('is-selected');
+                    control.textContent = '+';
+                    control.setAttribute('aria-pressed', 'false');
+                    control.setAttribute('title', '選擇巴士站');
+                    control.setAttribute('aria-label', '選擇巴士站');
+                    setFormStatus(`已取消選擇 ${result.type} 巴士站：${result.name}。`);
+                } else if (chooseStop(groupId, result)) {
+                    control.closest('.station-search-result')?.classList.add('is-selected');
+                    control.textContent = '−';
+                    control.setAttribute('aria-pressed', 'true');
+                    control.setAttribute('title', '取消選擇巴士站');
+                    control.setAttribute('aria-label', '取消選擇巴士站');
+                }
             } else if (action === 'select-search-result') {
                 const result = searchResultStore.get(resultKey);
                 if (!result) return;
@@ -1258,6 +1399,7 @@
                     showRouteStopChoices(groupId, result);
                 } else {
                     chooseStop(groupId, result);
+                    closeSearchResults(groupId);
                 }
             } else if (action === 'save') {
                 saveDraftConfiguration();
@@ -1265,8 +1407,6 @@
                 clearDraftStations();
             } else if (action === 'cancel') {
                 closeConfigurationWindow();
-            } else if (action === 'reset') {
-                resetDraftConfiguration();
             } else if (action === 'export' || action === 'confirm-export') {
                 downloadConfiguration();
                 if (action === 'confirm-export') setFormStatus('已匯出目前資料；確認後可按 Yes 繼續匯入。', 'success');

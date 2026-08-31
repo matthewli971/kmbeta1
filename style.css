@@ -97,6 +97,7 @@
     --color-light-yellow: #e9be82;
     --color-yellow: #f0ad4e;
     --color-orange: #ff8c00;
+    --colour-modify-selected-bkg: #14281a;
 
     /* Header palette and scale aligned with the MTR ETA monitor. */
     
@@ -396,6 +397,8 @@ body {
 
 .route-search-result {
     gap: 6px;
+    padding-top: 4px;
+    padding-bottom: 4px;
     cursor: pointer;
     font-family: 'Arial', sans-serif;
     font-size: 1rem;
@@ -410,6 +413,7 @@ body {
 
 .route-search-result .route-company-badge {
     flex: 0 0 10px;
+    height: 1.5rem;
 }
 
 .route-search-result .route-window-route {
@@ -432,8 +436,9 @@ body {
 
 .route-search-result .route-loop-badge {
     margin-left: 2px;
-    padding: 1px 5px;
-    font-size: 0.7em;
+    padding: 2px 5px;
+    font-size: 0.7rem;
+    transform: translateY(-3px);
 }
 
 .route-search-status {
@@ -862,7 +867,8 @@ body {
 .text-dark-grey { color: var(--color-dark-grey); }
 .text-black { color: var(--color-background); }
 
-/* Route ETA floating window */
+/* Shared popup shell for Route ETA, Stop ETA, and station customization. */
+.popup-window-overlay,
 .route-window-overlay {
     position: fixed;
     z-index: 1000;
@@ -870,22 +876,27 @@ body {
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    padding: 20px;
+    padding: 40px 0;
     background: rgb(0 0 0 / 72%);
 }
 
+.popup-window,
 .route-window {
     display: flex;
     flex-direction: column;
     position: relative;
     font-size: 16px;
-    width: min(700px, 100%);
-    max-height: min(86vh, 900px);
+    width: 100%;
+    box-sizing: border-box;
     overflow: hidden;
     border: 1px solid #555;
     border-radius: 18px;
     background: #111;
     box-shadow: 0 16px 48px rgb(0 0 0 / 70%);
+}
+
+.route-window {
+    --popup-eta-column-count: 3;
 }
 
 .route-window-header {
@@ -1092,7 +1103,7 @@ body {
     color: var(--color-text);
     border-color: var(--color-ctb);
 }
-.route-stop-times { display: table-cell; width: 252px; min-width: 252px; text-align: left; white-space: nowrap; }
+.route-stop-times { display: table-cell; width: calc(84px * var(--popup-eta-column-count)); min-width: calc(84px * var(--popup-eta-column-count)); text-align: left; white-space: nowrap; }
 .route-stop-times .eta-item { display: inline-flex; width: 84px; vertical-align: middle; }
 .route-stop-times .eta-large,
 .route-stop-times .eta-small { white-space: nowrap; }
@@ -1149,8 +1160,8 @@ body {
 .stop-eta-route { width: 15%; font-size: var(--font-route); font-weight: bold; }
 .stop-eta-route .route-suffix { font-size: 0.75em; }
 .stop-eta-times { 
-    width: calc(var(--stop-eta-item-width) * var(--stop-eta-column-count)); 
-    max-width: calc(var(--stop-eta-item-width) * var(--stop-eta-column-count) + 10px); 
+    width: calc(var(--stop-eta-item-width) * var(--popup-eta-column-count));
+    max-width: calc(var(--stop-eta-item-width) * var(--popup-eta-column-count) + 10px);
     text-align: left; 
     white-space: nowrap; 
     overflow: hidden; 
@@ -1207,6 +1218,19 @@ body {
 .stop-eta-times .eta-large,
 .stop-eta-times .eta-small { white-space: nowrap; }
 .stop-eta-times .eta-remark-tag { font-size: var(--font-win-eta-time); }
+
+/* Keep all ETA rows aligned while removing unused time-card columns. */
+.stop-eta-window {
+    --popup-eta-column-count: var(--stop-eta-column-count);
+}
+
+.popup-eta-columns-1 {
+    --popup-eta-column-count: 1;
+}
+
+.popup-eta-columns-2 {
+    --popup-eta-column-count: 2;
+}
 
 .dest-remark {
     color: var(--color-rmk);
@@ -1458,14 +1482,9 @@ input:checked + .slider:before {
     margin-right: 0;
 }
 
-.route-window-overlay {
-    align-items: flex-start;
-    padding: 40px 2px;
-}
-
+.popup-window,
 .route-window {
-    width: 100%;
-    max-height: 80vh;
+    max-height: 90vh;
     border-radius: 10px;
 }
 
@@ -1508,8 +1527,8 @@ input:checked + .slider:before {
 }
 
 .route-stop-times {
-    width: 210px;
-    min-width: 200px;
+    width: calc(var(--eta-item-width) * var(--popup-eta-column-count));
+    min-width: min(200px, calc(var(--eta-item-width) * var(--popup-eta-column-count)));
 }
 
 .route-stop-times .eta-item {
@@ -1608,13 +1627,8 @@ th.route-no {
         margin-right: 10px;
     }
 
-    .route-window-overlay {
-        padding: 20px;
-    }
-
+    .popup-window,
     .route-window {
-        width: min(700px, 100%);
-        max-height: min(86vh, 900px);
         border-radius: 18px;
     }
 
@@ -1647,7 +1661,10 @@ th.route-no {
         font-size: 2rem;
     }
 
-    .route-search-result .route-company-badge,
+    .route-search-result .route-company-badge {
+        height: 1.5rem;
+    }
+
     .route-window .route-company-badge {
         height: 1.8rem;
     }
@@ -1680,8 +1697,8 @@ th.route-no {
     }
 
     .route-stop-times {
-        width: 252px;
-        min-width: 252px;
+        width: calc(84px * var(--popup-eta-column-count));
+        min-width: calc(84px * var(--popup-eta-column-count));
     }
 
     .route-stop-times .eta-item {
@@ -1715,6 +1732,17 @@ th.route-no {
         --page-margin: 20px;
 
         --stop-eta-item-width: 80px;
+    }
+
+    /* All popup windows become inset dialogs only on wider screens. */
+    .popup-window-overlay,
+    .route-window-overlay {
+        padding: 20px;
+    }
+
+    .popup-window,
+    .route-window {
+        width: min(700px, 100%);
     }
 
     .stop-section { margin-top: 0; margin-bottom: 30px; padding: 10px; }
@@ -1900,6 +1928,10 @@ th.route-no {
         vertical-align: middle;
     }
 
+    .dest-text .stop-label {
+        transform: translateY(-6px);
+    }
+
     .eta-table td.dest .dest-sub-info {
         display: block;
         margin-left: -8px !important;
@@ -1912,7 +1944,7 @@ th.route-no {
 
     /* ETA Items */
     .eta-table .eta-item {
-        width: 110px;
+        width: 120px;
         padding: 2px;
     }
     
@@ -1951,12 +1983,6 @@ th.route-no {
         --font-destination: 2.3rem;
         --font-stop-code: 1.4rem;
     }
-
-    /* ETA Items */
-    .eta-table .eta-item {
-        width: 120px;
-        padding: 2px;
-    }
 }
 
 /* Testing Borders */
@@ -1969,14 +1995,7 @@ body.station-config-open {
 }
 
 .station-config-overlay {
-    position: fixed;
     z-index: 10020;
-    inset: 0;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    place-items: center;
-    padding: 0;
-    box-sizing: border-box;
     opacity: 0;
     transition: opacity 0.18s ease;
 }
@@ -1986,41 +2005,59 @@ body.station-config-open {
 }
 
 .station-config-window {
-    /*position: relative;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    color: var(--color-text);
-    font-size: 16px;*/
-    width: 100%;
     min-width: 0;
-    max-width: none;
-    box-sizing: border-box;
 }
 
 .station-config-header {
     position: relative;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    flex-direction: column;
+    flex-direction: row;
     gap: 10px;
     flex: 0 0 auto;
     padding: 14px;
 }
 
-.station-config-header h2,
+.station-config-header-title {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
 .station-import-confirm-card h3 {
     margin: 0;
     color: #fff;
 }
 
-.station-config-header h2 {
-    font-size: 1.45rem;
+.station-config-title-input {
+    width: 100%;
+    min-width: 0;
+    min-height: 34px;
+    box-sizing: border-box;
+    border: 1px solid #777;
+    border-radius: 5px;
+    padding: 6px 9px;
+    background: #0d0d0d;
+    color: #fff;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: normal;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.station-config-title-input::placeholder {
+    color: #aaa;
+    opacity: 1;
+}
+
+.station-config-title-input:focus {
+    border-color: var(--color-stop-title);
+    outline: 2px solid rgb(124 181 255 / 28%);
+    outline-offset: 1px;
 }
 
 .station-config-header p,
-.station-config-title-field p,
 .station-import-confirm-card p {
     margin: 6px 0 0;
     color: var(--color-grey);
@@ -2043,14 +2080,13 @@ body.station-config-open {
 }
 
 .station-config-header-actions {
-    width: 100%;
-    padding-right: 38px;
+    width: auto;
+    padding-right: 0;
     box-sizing: border-box;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 .station-config-secondary-button,
-.station-config-reset,
 .station-config-save,
 .station-config-clear,
 .station-config-cancel,
@@ -2065,7 +2101,6 @@ body.station-config-open {
 }
 
 .station-config-secondary-button,
-.station-config-reset,
 .station-config-save,
 .station-config-clear,
 .station-config-cancel,
@@ -2091,9 +2126,7 @@ body.station-config-open {
 }
 
 .station-config-close {
-    position: absolute;
-    top: 12px;
-    right: 12px;
+    position: static;
     width: 34px;
     min-width: 34px;
     height: 34px;
@@ -2122,18 +2155,6 @@ body.station-config-open {
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: 14px;
-}
-
-.station-config-title-field {
-    margin-bottom: 18px;
-    padding: 14px;
-    border: 1px solid #505050;
-    border-radius: 8px;
-    background: #151515;
-}
-
-.station-config-title-field p code {
-    color: #fff59f;
 }
 
 .station-config-field {
@@ -2233,6 +2254,21 @@ body.station-config-open {
 .station-config-group-title-field input:focus {
     border-color: var(--color-stop-title);
     outline: 2px solid rgb(124 181 255 / 28%);
+    outline-offset: 1px;
+}
+
+.station-config-field input.is-invalid,
+.station-config-group-title-field input.is-invalid,
+.station-config-title-input.is-invalid {
+    border-color: #ff6b6b;
+    box-shadow: 0 0 0 2px rgb(255 107 107 / 18%);
+}
+
+.station-config-field input.is-invalid:focus,
+.station-config-group-title-field input.is-invalid:focus,
+.station-config-title-input.is-invalid:focus {
+    border-color: #ff9b9b;
+    outline: 2px solid rgb(255 107 107 / 32%);
     outline-offset: 1px;
 }
 
@@ -2397,11 +2433,52 @@ body.station-config-open {
     text-align: left;
 }
 
+.station-search-result-add-icon {
+    display: grid;
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+    place-items: center;
+    box-sizing: border-box;
+    border: 1px solid var(--color-grey);
+    border-radius: 4px;
+    padding: 0;
+    background: var(--color-background);
+    color: var(--color-grey);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 1.45rem;
+    font-weight: normal;
+    line-height: 1;
+}
+
+.station-search-result-copy-button {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: flex-start;
+    gap: 8px;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+}
+
+.station-search-result.is-selected,
+.station-search-result.is-selected:hover,
+.station-search-result.is-selected:focus-visible {
+    background: var(--colour-modify-selected-bkg);
+}
+
 .station-search-result .route-company-badge {
     flex: 0 0 10px;
     width: 10px;
     height: 1rem;
     margin-right: 0;
+    transform: translateY(4px);
 }
 
 .station-search-result:last-child {
@@ -2463,10 +2540,10 @@ body.station-config-open {
     min-height: 30px;
     margin: 0;
     padding: 5px 8px;
-    border: 1px solid #466d53;
+    border: 1px solid #2e4737;
     border-radius: 5px;
     background: #14281a;
-    color: #d6f4dc;
+    color: var(--color-text);
     font-size: 0.82rem;
 }
 
@@ -2475,6 +2552,12 @@ body.station-config-open {
     background: #202020;
     color: #aaa;
     justify-content: flex-start;
+}
+
+.station-selected-stop-empty.is-invalid {
+    border-color: #ff6b6b;
+    background: #321c1c;
+    color: #ffb0b0;
 }
 
 .station-selected-stop-name {
@@ -2503,7 +2586,7 @@ body.station-config-open {
     flex: 0 0 auto;
     align-items: center;
     min-height: 1.45em;
-    margin-left: 2px;
+    margin-left: 5px;
     padding: 0 5px;
     border: 1px solid currentColor;
     border-radius: 4px;
@@ -2512,13 +2595,14 @@ body.station-config-open {
     font-size: 0.8rem;
     font-weight: bold;
     line-height: 1.2;
+    transform: translateY(-1px);
 }
 
 .station-selected-stop-actions {
     display: flex;
     align-items: center;
     flex: 0 0 auto;
-    gap: 4px;
+    gap: 0;
 }
 
 .station-config-tag-control {
@@ -2538,6 +2622,13 @@ body.station-config-open {
     background: transparent;
     color: var(--color-text);
     cursor: pointer;
+}
+
+.station-selected-stop-actions .station-config-tag-button,
+.station-selected-stop-actions .station-config-remove-group-button {
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
 }
 
 .station-config-tag-button svg {
@@ -2637,7 +2728,59 @@ body.station-config-open {
 }
 
 .station-config-status.is-error {
-    color: #ffabab;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: #fff;
+}
+
+.station-config-status-message {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.station-config-error-navigation {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 4px;
+}
+
+.station-config-error-nav-button {
+    display: grid;
+    width: 26px;
+    height: 26px;
+    place-items: center;
+    box-sizing: border-box;
+    border: 1px solid currentColor;
+    border-radius: 3px;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    font-size: 1.05rem;
+    line-height: 1;
+}
+
+.station-config-error-nav-button:hover:not(:disabled),
+.station-config-error-nav-button:focus-visible:not(:disabled) {
+    background: rgb(255 255 255 / 18%);
+    outline: none;
+}
+
+.station-config-error-nav-button:disabled {
+    cursor: default;
+    opacity: 0.45;
+}
+
+.station-config-error-count {
+    min-width: 3.2em;
+    color: inherit;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    white-space: nowrap;
 }
 
 .station-config-status.is-success {
@@ -2653,17 +2796,15 @@ body.station-config-open {
 }
 
 .station-config-clear {
-    min-width: 72px;
-    border: 1px solid #d27676;
-    background: #2b1717;
-    color: #ffb3b3;
+    border: none;
+    background: #d9534f;
+    color: #fff;
     font-weight: bold;
 }
 
 .station-config-clear:hover,
 .station-config-clear:focus-visible {
-    border-color: #ff9b9b;
-    background: #572626;
+    background: #c9302c;
     color: #fff;
     outline: none;
 }
@@ -2673,20 +2814,6 @@ body.station-config-open {
     border-color: #fff59f;
     background: #fff59f;
     outline: none;
-}
-
-.station-config-reset {
-    min-width: 72px;
-    border: 1px solid #fff;
-    background: #222;
-    color: #fff;
-}
-
-.station-config-reset:hover,
-.station-config-reset:focus-visible {
-    background: #444;
-    outline: 2px solid rgb(255 255 255 / 30%);
-    outline-offset: 1px;
 }
 
 .station-config-cancel {
@@ -2708,8 +2835,6 @@ body.station-config-open {
 }
 
 .station-config-footer-actions > .station-config-save,
-.station-config-footer-actions > .station-config-reset,
-.station-config-footer-actions > .station-config-clear,
 .station-config-footer-actions > .station-config-cancel {
     flex: 1 1 0;
     min-width: 0;
@@ -2789,33 +2914,9 @@ body.station-config-open {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .station-config-overlay {
-        padding: 0;
-    }
-
-    .station-config-window {
-        width: 100%;
-        height: min(860px, calc(100vh - 40px));
-        max-height: calc(100vh - 40px);
-    }
-
     .station-config-header {
-        flex-direction: row;
         gap: 16px;
         padding: 18px 20px;
-    }
-
-    .station-config-header-actions {
-        width: auto;
-        padding-right: 0;
-        box-sizing: content-box;
-        flex-wrap: nowrap;
-    }
-
-    .station-config-close {
-        position: static;
-        top: auto;
-        right: auto;
     }
 
     .station-config-body {
@@ -2838,8 +2939,6 @@ body.station-config-open {
     }
 
     .station-config-footer-actions > .station-config-save,
-    .station-config-footer-actions > .station-config-reset,
-    .station-config-footer-actions > .station-config-clear,
     .station-config-footer-actions > .station-config-cancel {
         flex: 0 0 auto;
         min-width: 72px;
