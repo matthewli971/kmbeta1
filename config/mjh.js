@@ -79,7 +79,8 @@ const STOPS = [
             { id: "5FD7848A339751B6", code: "KT349", label: null, type: "KMB" },
             { id: "2437897A21642D85", code: "KT350", label: null, type: "KMB" },
             { id: "F2127FD781019971", code: "KT351", label: null, type: "KMB" },
-            { id: "80B56E2C7719DAF4", code: "KT352", label: null, type: "KMB" }
+            { id: "80B56E2C7719DAF4", code: "KT352", label: null, type: "KMB" },
+            { id: "001509", code: "001509", label: null, type: "CTB" }
         ],
         filter: null,
         exclude: null,
