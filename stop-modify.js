@@ -359,7 +359,7 @@
                 </div>
                 <label class="station-config-field station-config-pin-field">
                     <span>置頂線路</span>
-                    <input type="text" placeholder="(選填) 若要註明方向請在後加'|[I/O]' e.g. A22|O" value="${escapeMarkup((group.pin || []).join(', '))}" data-field="pinned-routes" data-group-id="${escapeMarkup(group._draftId)}" aria-label="第 ${groupIndex + 1} 個車站群組的置頂線路">
+                    <input type="text" placeholder="(選填) 註明方向請在後加'|[I/O]' e.g. A22|O" value="${escapeMarkup((group.pin || []).join(', '))}" data-field="pinned-routes" data-group-id="${escapeMarkup(group._draftId)}" aria-label="第 ${groupIndex + 1} 個車站群組的置頂線路">
                 </label>
             </article>`).join('');
     }

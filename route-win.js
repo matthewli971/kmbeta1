@@ -458,10 +458,12 @@ async function loadRouteWindow(loadVariations = true, silent = false) {
                     const stopCode = codeMatch?.[1] || configuredStopCode || '';
                     const interchangeMatch = displayName.match(/^(.+?轉車站)\s*[-－–—]\s*(.+)$/);
                     const interchangeName = interchangeMatch?.[1] || '';
+                    const displayStopCode = stopCode ? `${stopCode}${interchangeName ? ' ' + interchangeName : ''}` : (interchangeName || stop.stop || '');
+                    console.log(displayStopCode);
                     if (interchangeMatch) displayName = interchangeMatch[2].trim();
                     const otherStopCode = otherStopCodesBySequence.get(String(stop.seq));
-                    const stopCodeHtml = stopCode || interchangeName || otherStopCode?.code
-                        ? `<span class="route-stop-code">${stopCode ? `<button class="route-stop-info-button" type="button" data-company="KMB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(displayName)}" data-stop-code="${escapeHtml(stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(displayName)}到站時間">${escapeHtml(stopCode)}</button>` : ''}${interchangeName ? `<span class="route-stop-interchange">${stopCode ? ' ' : ''}${escapeHtml(interchangeName)}</span>` : ''}${renderOtherRouteStopCode(otherStopCode, state.company, displayName)}</span>`
+                    const stopCodeHtml = displayStopCode || otherStopCode?.code
+                        ? `<span class="route-stop-code">${displayStopCode ? `<button class="route-stop-info-button" type="button" data-company="KMB" data-stop-id="${escapeHtml(stop.stop)}" data-stop-name="${escapeHtml(displayName)}" data-stop-code="${escapeHtml(stopCode)}" title="查看本站到站時間" aria-label="查看${escapeHtml(displayName)}到站時間">${escapeHtml(displayStopCode)}</button>` : ''}${renderOtherRouteStopCode(otherStopCode, state.company, displayName)}</span>`
                         : '';
                     const etas = getRouteWindowEtas(primaryEtaBySequence, otherEtaBySequence, String(stop.seq));
                     maximumEtaCount = Math.max(maximumEtaCount, etas.length);
